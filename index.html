@@ -54,6 +54,11 @@
 
   /* ---------- hero ---------- */
   .hero{position:relative;min-height:100svh;display:grid;align-items:center;overflow:hidden;isolation:isolate}
+  @media(min-width:62rem){
+    .hero{perspective:1150px;perspective-origin:50% 42%}
+    /* the slogan is no longer flat — it rides nearest the viewer */
+    .hero .wrap{transform:translateZ(60px)}
+  }
   .bg{position:absolute;inset:0;z-index:-3;background:
     radial-gradient(ellipse 70% 55% at 50% 15%,rgba(232,193,74,.16),transparent 65%),
     radial-gradient(ellipse 90% 70% at 85% 95%,rgba(38,58,110,.38),transparent 70%),
@@ -92,8 +97,8 @@
     opacity:0;animation:cardIn .9s var(--ease) forwards;
   }
   @keyframes cardIn{
-    from{opacity:0;transform:rotateY(var(--ry,0deg)) rotateZ(var(--rot,0deg)) translateZ(var(--tz,0px)) translateY(24px) scale(.96)}
-    to{opacity:1;transform:rotateY(var(--ry,0deg)) rotateZ(var(--rot,0deg)) translateZ(var(--tz,0px))}
+    from{opacity:0;transform:rotateY(var(--ry,0deg)) rotateX(var(--rx,0deg)) rotateZ(var(--rot,0deg)) translateZ(var(--tz,0px)) translateY(24px) scale(.96)}
+    to{opacity:1;transform:rotateY(var(--ry,0deg)) rotateX(var(--rx,0deg)) rotateZ(var(--rot,0deg)) translateZ(var(--tz,0px))}
   }
 
   .card h4{margin:0;display:flex;justify-content:space-between;align-items:center;gap:.6rem;
@@ -145,15 +150,16 @@
     .cards{position:absolute;inset:0;display:block;margin:0;max-width:none;padding:0;pointer-events:none}
     .cards .card{position:absolute;width:17.5rem;pointer-events:auto}
     .cards .card{width:16rem}
-    /* Depth: the stage carries the perspective, each card turns its outer edge
-       forward so its face points back at the slogan. Left and right mirror;
-       the lower pair sits nearer the viewer than the upper pair. */
-    .cards{perspective:1500px;perspective-origin:50% 42%;transform-style:preserve-3d}
-    .c1{top:11%;left:max(1.5rem,calc(50% - 40rem));--rot:-1.5deg;--ry:15deg;--tz:-14px;animation-delay:.3s}
-    .c2{top:20%;right:max(1.5rem,calc(50% - 41rem));--rot:1.2deg;--ry:-15deg;--tz:-14px;animation-delay:.45s}
-    .c3{bottom:11%;left:max(2rem,calc(50% - 36rem));--rot:1deg;--ry:13deg;--tz:14px;animation-delay:.6s}
-    .c4{bottom:19%;right:max(2rem,calc(50% - 38rem));--rot:-1.3deg;--ry:-13deg;--tz:14px;animation-delay:.75s}
-    .card{transform:rotateY(var(--ry,0deg)) rotateZ(var(--rot,0deg)) translateZ(var(--tz,0px))}
+    /* One scene: the perspective lives on .hero, so the slogan and the cards
+       share a vanishing point instead of sitting in separate 3D contexts.
+       The title rides forward; the cards sit behind it and turn their outer
+       edge toward the viewer, so every face aims back at the headline. */
+    .cards{transform-style:preserve-3d}
+    .c1{top:11%;left:max(1.5rem,calc(50% - 40rem));--rot:-1.5deg;--ry:26deg;--rx:-7deg;--tz:-120px;animation-delay:.3s}
+    .c2{top:20%;right:max(1.5rem,calc(50% - 41rem));--rot:1.2deg;--ry:-26deg;--rx:-7deg;--tz:-120px;animation-delay:.45s}
+    .c3{bottom:11%;left:max(2rem,calc(50% - 36rem));--rot:1deg;--ry:22deg;--rx:6deg;--tz:-45px;animation-delay:.6s}
+    .c4{bottom:19%;right:max(2rem,calc(50% - 38rem));--rot:-1.3deg;--ry:-22deg;--rx:6deg;--tz:-45px;animation-delay:.75s}
+    .card{transform:rotateY(var(--ry,0deg)) rotateX(var(--rx,0deg)) rotateZ(var(--rot,0deg)) translateZ(var(--tz,0px))}
   }
 
 
