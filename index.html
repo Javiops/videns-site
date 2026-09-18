@@ -11,11 +11,22 @@
 <meta property="og:description" content="A post-game AI coach for League of Legends. It reads your match back — the buys, the map, the calls.">
 <meta property="og:type" content="website">
 <meta property="og:locale" content="en">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://ddragon.leagueoflegends.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;800;900&display=swap" rel="stylesheet">
+<link rel="preload" href="fonts/inter-var-latin.woff2" as="font" type="font/woff2" crossorigin>
 <style>
+  /* Self-hosted so the face is available at first paint. Google Fonts needed a
+     second round trip, so the page painted in the fallback and then re-rendered
+     in Inter — that swap was the blink. `optional` means the browser never
+     performs that swap: it either has the font in time or stays on fallback. */
+  @font-face{
+    font-family:"Inter";
+    font-style:normal;
+    font-weight:400 900;
+    font-display:optional;
+    src:url("fonts/inter-var-latin.woff2") format("woff2");
+    unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,
+      U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD;
+  }
   :root{
     --bg:#06070a; --panel:rgba(20,23,30,.72); --line:rgba(255,255,255,.09);
     --text:#f2f4f8; --muted:#939cae; --faint:#626b7d;
@@ -26,7 +37,7 @@
     --ease:cubic-bezier(.22,.61,.36,1);
   }
   *{box-sizing:border-box}
-  html{scroll-behavior:smooth}
+  html{scroll-behavior:smooth;scrollbar-gutter:stable}
   body{margin:0;background:var(--bg);color:var(--text);font:400 16px/1.6 var(--font);
     -webkit-font-smoothing:antialiased;overflow-x:hidden}
   img{max-width:100%;display:block}
@@ -78,11 +89,9 @@
     background:linear-gradient(165deg,#171b24,#0f1218);
     border:2px solid rgba(255,255,255,.17);border-radius:12px;overflow:hidden;
     box-shadow:0 30px 70px -28px rgba(0,0,0,.95);
-    opacity:0;animation:cardIn .55s var(--ease) forwards;
+    opacity:0;animation:cardIn .9s var(--ease) forwards;
   }
-  /* Fade only. Animating transform made the cards grow from 96% on every
-     load, which read as the page resizing itself. */
-  @keyframes cardIn{from{opacity:0}to{opacity:1}}
+  @keyframes cardIn{from{opacity:0;transform:rotate(var(--rot,0deg)) translateY(24px) scale(.96)}to{opacity:1;transform:rotate(var(--rot,0deg))}}
 
   .card h4{margin:0;display:flex;justify-content:space-between;align-items:center;gap:.6rem;
     padding:.7rem .85rem;border-bottom:1px solid var(--line);background:rgba(0,0,0,.3);
@@ -133,10 +142,10 @@
     .cards{position:absolute;inset:0;display:block;margin:0;max-width:none;padding:0;pointer-events:none}
     .cards .card{position:absolute;width:17.5rem;pointer-events:auto}
     .cards .card{width:16rem}
-    .c1{top:11%;left:max(1.5rem,calc(50% - 40rem));--rot:-1.5deg;animation-delay:.05s}
-    .c2{top:20%;right:max(1.5rem,calc(50% - 41rem));--rot:1.2deg;animation-delay:.12s}
-    .c3{bottom:11%;left:max(2rem,calc(50% - 36rem));--rot:1deg;animation-delay:.19s}
-    .c4{bottom:19%;right:max(2rem,calc(50% - 38rem));--rot:-1.3deg;animation-delay:.26s}
+    .c1{top:11%;left:max(1.5rem,calc(50% - 40rem));--rot:-1.5deg;animation-delay:.3s}
+    .c2{top:20%;right:max(1.5rem,calc(50% - 41rem));--rot:1.2deg;animation-delay:.45s}
+    .c3{bottom:11%;left:max(2rem,calc(50% - 36rem));--rot:1deg;animation-delay:.6s}
+    .c4{bottom:19%;right:max(2rem,calc(50% - 38rem));--rot:-1.3deg;animation-delay:.75s}
     .card{transform:rotate(var(--rot,0deg))}
   }
 
