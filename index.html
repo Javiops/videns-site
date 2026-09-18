@@ -78,9 +78,11 @@
     background:linear-gradient(165deg,#171b24,#0f1218);
     border:2px solid rgba(255,255,255,.17);border-radius:12px;overflow:hidden;
     box-shadow:0 30px 70px -28px rgba(0,0,0,.95);
-    opacity:0;animation:cardIn .9s var(--ease) forwards;
+    opacity:0;animation:cardIn .55s var(--ease) forwards;
   }
-  @keyframes cardIn{from{opacity:0;transform:rotate(var(--rot,0deg)) translateY(24px) scale(.96)}to{opacity:1;transform:rotate(var(--rot,0deg))}}
+  /* Fade only. Animating transform made the cards grow from 96% on every
+     load, which read as the page resizing itself. */
+  @keyframes cardIn{from{opacity:0}to{opacity:1}}
 
   .card h4{margin:0;display:flex;justify-content:space-between;align-items:center;gap:.6rem;
     padding:.7rem .85rem;border-bottom:1px solid var(--line);background:rgba(0,0,0,.3);
@@ -131,10 +133,10 @@
     .cards{position:absolute;inset:0;display:block;margin:0;max-width:none;padding:0;pointer-events:none}
     .cards .card{position:absolute;width:17.5rem;pointer-events:auto}
     .cards .card{width:16rem}
-    .c1{top:11%;left:max(1.5rem,calc(50% - 40rem));--rot:-1.5deg;animation-delay:.3s}
-    .c2{top:20%;right:max(1.5rem,calc(50% - 41rem));--rot:1.2deg;animation-delay:.45s}
-    .c3{bottom:11%;left:max(2rem,calc(50% - 36rem));--rot:1deg;animation-delay:.6s}
-    .c4{bottom:19%;right:max(2rem,calc(50% - 38rem));--rot:-1.3deg;animation-delay:.75s}
+    .c1{top:11%;left:max(1.5rem,calc(50% - 40rem));--rot:-1.5deg;animation-delay:.05s}
+    .c2{top:20%;right:max(1.5rem,calc(50% - 41rem));--rot:1.2deg;animation-delay:.12s}
+    .c3{bottom:11%;left:max(2rem,calc(50% - 36rem));--rot:1deg;animation-delay:.19s}
+    .c4{bottom:19%;right:max(2rem,calc(50% - 38rem));--rot:-1.3deg;animation-delay:.26s}
     .card{transform:rotate(var(--rot,0deg))}
   }
 
