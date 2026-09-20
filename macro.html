@@ -1,0 +1,533 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Revisión macro · Videns</title>
+<meta name="description" content="Revisión de decisiones de jungla challenger: minimapas, build y oro en cada decisión.">
+<link rel="preload" href="fonts/inter-var-latin.woff2" as="font" type="font/woff2" crossorigin>
+<style>
+  @font-face{
+    font-family:"Inter";font-style:normal;font-weight:400 900;font-display:optional;
+    src:url("fonts/inter-var-latin.woff2") format("woff2");
+  }
+  :root{
+    --bg:#06070a; --panel:rgba(20,23,30,.72); --panel2:#171b24; --line:rgba(255,255,255,.09);
+    --text:#f2f4f8; --muted:#939cae; --faint:#626b7d;
+    --accent:#e8c14a; --accent-2:#c9a227;
+    --blue:#5b8fc9; --red:#c9705b; --mint:#4fe1bc; --purple:#b48cf2; --orange:#f2a35c;
+    --ok:#5ec98a; --bad:#ef6b82; --meh:#e8c14a;
+    --font:"Inter",ui-sans-serif,-apple-system,"Segoe UI",system-ui,sans-serif;
+    --mono:ui-monospace,SFMono-Regular,Menlo,monospace;
+  }
+  *{box-sizing:border-box}
+  html{scrollbar-gutter:stable}
+  body{margin:0;background:var(--bg);color:var(--text);font:400 15px/1.55 var(--font);
+    -webkit-font-smoothing:antialiased}
+  a{color:inherit}
+  img{display:block}
+  button{font:inherit;cursor:pointer}
+  .wrap{width:min(100% - 2.5rem,1340px);margin:0 auto}
+
+  /* ---------- nav ---------- */
+  .nav{position:sticky;top:0;z-index:40;background:rgba(6,7,10,.88);backdrop-filter:blur(14px);
+    border-bottom:1px solid var(--line)}
+  .nav .wrap{display:flex;align-items:center;gap:1.6rem;height:64px}
+  .logo{font-weight:800;font-size:1.15rem;letter-spacing:-.04em;text-decoration:none}
+  .logo i{color:var(--accent);font-style:normal}
+  .nav .bc{font-size:.875rem;color:var(--muted);text-decoration:none;font-weight:600}
+  .nav .bc:hover{color:var(--text)}
+  .nav .bc.cur{color:var(--text);border-bottom:2px solid var(--accent);padding:20px 0 18px}
+  .nav .tag{margin-left:auto;font-size:.6875rem;letter-spacing:.18em;text-transform:uppercase;color:var(--faint)}
+
+  main{padding:1.8rem 0 7rem}
+  .eyebrow{font-size:.6875rem;letter-spacing:.26em;text-transform:uppercase;color:var(--accent-2);margin:0 0 .8rem}
+  h1{margin:0;font-size:clamp(1.6rem,3.4vw,2.5rem);font-weight:800;letter-spacing:-.04em;line-height:1.05}
+  .lead{margin:.8rem 0 0;color:var(--muted);max-width:60ch}
+
+  /* ---------- índice ---------- */
+  .figs{display:flex;gap:2.6rem;flex-wrap:wrap;margin:2rem 0 .4rem}
+  .fig b{display:block;font-size:2rem;font-weight:800;letter-spacing:-.04em;font-variant-numeric:tabular-nums;
+    background:linear-gradient(180deg,#f6dc80,var(--accent-2));-webkit-background-clip:text;background-clip:text;color:transparent}
+  .fig span{display:block;margin-top:.15rem;font-size:.78rem;color:var(--muted)}
+  .player-h{display:flex;align-items:baseline;gap:.8rem;margin:2.6rem 0 1rem}
+  .player-h h2{margin:0;font-size:1.35rem;font-weight:800;letter-spacing:-.03em}
+  .player-h span{font-size:.8rem;color:var(--faint)}
+  .games{display:grid;gap:.9rem;grid-template-columns:repeat(auto-fill,minmax(19rem,1fr))}
+  .gcard{display:flex;gap:.9rem;align-items:center;text-decoration:none;padding:.85rem .95rem;
+    border:1px solid var(--line);border-radius:13px;background:linear-gradient(165deg,var(--panel2),#0f1218);
+    transition:border-color .15s,transform .15s}
+  .gcard:hover{border-color:rgba(232,193,74,.5);transform:translateY(-2px)}
+  .gcard img{width:46px;height:46px;border-radius:10px;border:1px solid var(--line)}
+  .gcard .in{flex:1;min-width:0}
+  .gcard b{display:block;font-size:.95rem;letter-spacing:-.01em}
+  .gcard small{display:block;font:500 .68rem/1.5 var(--mono);color:var(--faint);
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .side{font-size:.62rem;font-weight:700;letter-spacing:.08em;padding:.14rem .45rem;border-radius:99px}
+  .side.b{color:#a8c8ec;background:rgba(91,143,201,.16);border:1px solid rgba(91,143,201,.35)}
+  .side.r{color:#eab4a8;background:rgba(201,112,91,.16);border:1px solid rgba(201,112,91,.35)}
+  .prog{margin-top:.45rem;height:4px;border-radius:99px;background:rgba(255,255,255,.07);overflow:hidden}
+  .prog div{height:100%;background:linear-gradient(90deg,#f6dc80,var(--accent-2))}
+  .gcard .n{font:600 .72rem/1.4 var(--mono);color:var(--muted);text-align:right;white-space:nowrap}
+  .gcard .n em{font-style:normal;color:var(--accent)}
+
+  /* ---------- partida ---------- */
+  .ghead{display:flex;align-items:center;gap:1rem;flex-wrap:wrap;margin-bottom:1rem}
+  .ghead img{width:52px;height:52px;border-radius:12px;border:1px solid var(--line)}
+  .ghead h1{font-size:clamp(1.3rem,2.6vw,1.9rem)}
+  .ghead .sub{font:500 .72rem/1.6 var(--mono);color:var(--faint)}
+  .ghead .pos{margin-left:auto;text-align:right}
+  .ghead .pos b{display:block;font-size:1.3rem;font-weight:800;font-variant-numeric:tabular-nums}
+  .ghead .pos span{font-size:.7rem;color:var(--faint)}
+
+  /* tira de decisiones */
+  .strip{display:flex;gap:2px;margin:0 0 1.2rem;padding:.55rem;border:1px solid var(--line);
+    border-radius:11px;background:rgba(0,0,0,.3);overflow-x:auto;scrollbar-width:thin}
+  .strip button{flex:1 0 7px;min-width:7px;height:26px;padding:0;border:0;border-radius:3px;
+    background:var(--c,#444);opacity:.45;position:relative}
+  .strip button:hover{opacity:.85}
+  .strip button.cur{opacity:1;outline:2px solid #fff;outline-offset:1px}
+  .strip button.done{opacity:.9}
+  .strip button.done::after{content:"";position:absolute;left:50%;bottom:-1px;transform:translateX(-50%);
+    width:4px;height:4px;border-radius:99px;background:#fff}
+
+  .cols{display:grid;gap:1.1rem;grid-template-columns:minmax(0,1fr)}
+  @media(min-width:74rem){.cols{grid-template-columns:minmax(0,1fr) 25.5rem}}
+  .panel{border:1px solid var(--line);border-radius:14px;background:linear-gradient(165deg,rgba(23,27,36,.85),rgba(10,12,16,.9));
+    padding:1.1rem 1.2rem}
+  .panel h4{margin:0 0 .75rem;font:600 .625rem/1 var(--mono);letter-spacing:.16em;text-transform:uppercase;color:var(--faint)}
+
+  .tokbar{display:flex;align-items:center;gap:1.1rem;flex-wrap:wrap}
+  .tokbar time{font:700 1.5rem/1 var(--mono);font-variant-numeric:tabular-nums;color:var(--muted)}
+  .tokbar .tk{font-size:clamp(1.2rem,2.2vw,1.7rem);font-weight:800;letter-spacing:-.02em}
+  .tokbar .tk i{font-style:normal;color:var(--tc,var(--accent))}
+  .tokbar code{font:600 .68rem/1 var(--mono);color:var(--faint);border:1px solid var(--line);
+    padding:.28rem .5rem;border-radius:7px;letter-spacing:.06em}
+  .tokbar .fam{width:10px;height:26px;border-radius:4px;background:var(--tc,var(--accent))}
+
+  .maps{display:grid;gap:.8rem;grid-template-columns:repeat(auto-fit,minmax(14rem,1fr));margin-top:1rem}
+  .maps figure{margin:0}
+  .maps img{width:100%;aspect-ratio:1;border-radius:10px;border:1px solid var(--line);cursor:zoom-in}
+  .maps .void{width:100%;aspect-ratio:1;border-radius:10px;border:1px dashed var(--line);
+    display:grid;place-items:center;color:var(--faint);font-size:.8rem}
+  .maps figcaption{margin-top:.4rem;font:500 .68rem/1.4 var(--mono);color:var(--faint);text-align:center;letter-spacing:.05em}
+  .maps figcaption b{color:var(--muted);font-weight:600}
+
+  .visrow{display:flex;align-items:center;gap:.7rem;flex-wrap:wrap;margin-top:1.1rem;font-size:.85rem;color:var(--muted)}
+  .visrow .bar{width:150px;height:8px;border-radius:99px;background:rgba(255,255,255,.08);overflow:hidden}
+  .visrow .bar div{height:100%;background:linear-gradient(90deg,#f6dc80,var(--accent-2))}
+  .visrow b{color:var(--text)}
+  .visrow .nou{color:var(--bad);font-weight:600}
+  .echips{display:flex;gap:.35rem;flex-wrap:wrap}
+  .echip{display:flex;align-items:center;gap:.35rem;font:500 .68rem/1 var(--mono);color:var(--muted);
+    border:1px solid var(--line);border-radius:99px;padding:.22rem .55rem .22rem .25rem;background:rgba(0,0,0,.25)}
+  .echip img{width:20px;height:20px;border-radius:99px}
+  .echip.unk{opacity:.55}.echip.dead img{filter:grayscale(1)}
+  .echip.dead span{color:var(--bad)}
+
+  .shop{display:flex;align-items:center;gap:.6rem;flex-wrap:wrap;margin-top:1.1rem}
+  .shop .lbl{font:600 .625rem/1.5 var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--faint)}
+  .buy{display:flex;align-items:center;gap:.55rem;border:1px solid rgba(232,193,74,.28);
+    background:rgba(232,193,74,.07);border-radius:10px;padding:.4rem .65rem .4rem .45rem}
+  .buy img{width:30px;height:30px;border-radius:7px;border:1px solid var(--line)}
+  .buy b{display:block;font-size:.8rem;line-height:1.2}
+  .buy span{display:block;font:600 .68rem/1.4 var(--mono)}
+  .buy span i{font-style:normal;color:var(--accent)}
+  .buy span u{text-decoration:none;color:var(--orange)}
+  .buy span s{text-decoration:none;color:var(--bad)}
+  .buy small{font-size:.6rem;color:var(--faint)}
+  .shop .none{font-size:.8rem;color:var(--faint)}
+
+  /* objetivos */
+  .objs{display:flex;gap:.4rem;flex-wrap:wrap;margin-top:1rem}
+  .objs span{font:600 .66rem/1 var(--mono);letter-spacing:.05em;color:var(--muted);
+    border:1px solid var(--line);border-radius:7px;padding:.32rem .5rem;background:rgba(0,0,0,.25)}
+  .objs span b{color:var(--blue)}.objs span i{font-style:normal;color:var(--red)}
+  .objs span em{font-style:normal;color:var(--accent)}
+
+  /* equipos */
+  .team{margin-bottom:1rem}
+  .team h5{margin:0 0 .5rem;font:700 .68rem/1 var(--mono);letter-spacing:.14em;text-transform:uppercase}
+  .team.b h5{color:#a8c8ec}.team.r h5{color:#eab4a8}
+  .prow{display:grid;grid-template-columns:34px 1fr auto;gap:.6rem;align-items:center;
+    padding:.42rem .5rem;border-radius:10px;border:1px solid transparent}
+  .prow+.prow{margin-top:.15rem}
+  .prow.me{border-color:rgba(232,193,74,.45);background:rgba(232,193,74,.06)}
+  .prow.dead{opacity:.55}
+  .prow>img{width:34px;height:34px;border-radius:8px;border:1px solid var(--line)}
+  .prow.dead>img{filter:grayscale(1)}
+  .prow .id b{font-size:.82rem;display:inline}
+  .prow .id .lv{font:600 .62rem/1 var(--mono);color:var(--faint);margin-left:.3rem}
+  .prow .id .rl{font:600 .58rem/1 var(--mono);letter-spacing:.1em;color:var(--faint);margin-left:.3rem}
+  .prow .id small{display:block;font-size:.68rem;color:var(--muted);margin-top:.1rem}
+  .prow .id small .saw{color:var(--orange)}
+  .prow .id small .unk{color:var(--bad)}
+  .prow .eco{text-align:right}
+  .prow .eco .g{font:600 .72rem/1.4 var(--mono);font-variant-numeric:tabular-nums;color:var(--accent)}
+  .prow .eco .g small{color:var(--faint);font-size:.62rem}
+  .prow .items{display:flex;gap:2px;justify-content:flex-end;margin-top:.2rem}
+  .prow .items img{width:17px;height:17px;border-radius:4px;border:1px solid rgba(255,255,255,.12)}
+  .goldnote{font-size:.66rem;color:var(--faint);margin:.2rem 0 0;font-family:var(--mono)}
+
+  /* veredicto */
+  .dock{position:fixed;left:0;right:0;bottom:0;z-index:30;border-top:1px solid var(--line);
+    background:rgba(9,11,15,.92);backdrop-filter:blur(14px)}
+  .dock .wrap{display:flex;align-items:center;gap:.6rem;padding:.7rem 0;flex-wrap:wrap}
+  .dock .nav2{display:flex;gap:.35rem}
+  .dock button{background:var(--panel2);color:var(--text);border:1px solid var(--line);border-radius:9px;
+    padding:.55rem .9rem;font-weight:600;font-size:.85rem}
+  .dock button:hover{border-color:var(--accent)}
+  .dock button.v{padding:.55rem 1.1rem}
+  .dock button.v small{font-weight:600;color:var(--faint);margin-left:.35rem;font-size:.68rem}
+  .dock button.v.ok.on{background:rgba(94,201,138,.18);border-color:var(--ok);color:#c9f0d8}
+  .dock button.v.bad.on{background:rgba(239,107,130,.16);border-color:var(--bad);color:#f7ccd4}
+  .dock button.v.meh.on{background:rgba(232,193,74,.15);border-color:var(--meh);color:#f2e3ae}
+  .dock input{flex:1 1 12rem;min-width:8rem;background:var(--panel2);color:var(--text);
+    border:1px solid var(--line);border-radius:9px;padding:.55rem .75rem}
+  .dock .exp{margin-left:auto;color:var(--muted);font-size:.78rem}
+  .dock .exp:hover{color:var(--accent)}
+
+  /* lightbox */
+  .lb{position:fixed;inset:0;z-index:50;background:rgba(4,5,8,.9);display:none;place-items:center;cursor:zoom-out}
+  .lb.open{display:grid}
+  .lb img{width:min(86vmin,720px);border-radius:12px;border:1px solid var(--line);image-rendering:pixelated}
+  .lb figcaption{margin-top:.6rem;text-align:center;font:500 .75rem/1.5 var(--mono);color:var(--muted)}
+
+  .hidden{display:none!important}
+  .loading{padding:3rem 0;color:var(--faint)}
+  ::selection{background:rgba(232,193,74,.35)}
+</style>
+</head>
+<body>
+
+<nav class="nav"><div class="wrap">
+  <a class="logo" href="index.html">VIDENS<i>.</i></a>
+  <a class="bc cur" href="#/">Revisión macro</a>
+  <span class="tag">MVP interno</span>
+</div></nav>
+
+<main class="wrap">
+  <div id="view" class="loading">Cargando el corpus…</div>
+</main>
+
+<div class="dock hidden" id="dock"><div class="wrap">
+  <div class="nav2">
+    <button id="bPrev" title="anterior (←)">&larr;</button>
+    <button id="bNext" title="siguiente (→)">&rarr;</button>
+  </div>
+  <button class="v ok"  id="vAgree">De acuerdo<small>A</small></button>
+  <button class="v bad" id="vDis">En desacuerdo<small>X</small></button>
+  <button class="v meh" id="vUnc">Dudoso<small>D</small></button>
+  <input id="note" placeholder="nota (Enter guarda)">
+  <a href="#" class="exp" id="bExport">descargar feedback.jsonl</a>
+</div></div>
+
+<div class="lb" id="lb"><figure><img id="lbImg" alt=""><figcaption id="lbCap"></figcaption></figure></div>
+
+<script>
+'use strict';
+const $ = s => document.getElementById(s);
+const DD = p => 'https://ddragon.leagueoflegends.com/cdn/' + p;
+const FBKEY = 'videns_macro_fb';
+
+const FAM = [
+  [/^FARMEAR/, 'var(--mint)'], [/^GANK/, 'var(--bad)'], [/^OBJETIVO/, 'var(--accent)'],
+  [/^RESET/, '#939cae'], [/^ROTAR/, 'var(--blue)'], [/^INVADIR/, 'var(--purple)'],
+  [/^PELEAR/, 'var(--orange)'], [/^CUBRIR/, '#5bc9c0'], [/^CENTINELA/, '#8fa3c9'],
+];
+const famColor = t => (FAM.find(([re]) => re.test(t)) || [0, 'var(--accent)'])[1];
+
+const REGION = {BASE:'base', BASE_ENEMIGA:'base enemiga', TOP:'top', MID:'mid', BOT:'bot',
+  RIO_TOP:'río top', RIO_BOT:'río bot', PIT_BARON:'foso barón', PIT_DRAGON:'foso dragón',
+  JGL_PA:'jgl propia azul', JGL_PR:'jgl propia roja', JGL_EA:'jgl enemiga azul', JGL_ER:'jgl enemiga roja'};
+const reg = r => REGION[r] || r || '?';
+
+let IDX = null;            // games.json
+let G = null, Gmid = null; // partida cargada
+let i = 0;                 // decisión actual
+let ITEMS = null;          // ddragon item.json (nombres)
+let FB = {};               // veredictos {mid|t0: {...}}
+try { FB = JSON.parse(localStorage.getItem(FBKEY) || '{}'); } catch (e) {}
+
+const mmss = t => { t = Math.round(t); return String(Math.floor(t/60)).padStart(2,'0') + ':' + String(t%60).padStart(2,'0'); };
+const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const champImg = (c, cls) => '<img class="' + (cls||'') + '" src="' + DD(ddv() + '/img/champion/' + c + '.png') + '" alt="' + esc(c) + '" title="' + esc(c) + '" loading="lazy" onerror="this.style.visibility=\'hidden\'">';
+const itemImg = id => '<img src="' + DD(ddv() + '/img/item/' + id + '.png') + '" alt="' + id + '" title="' + itemName(id) + '" loading="lazy" onerror="this.style.visibility=\'hidden\'">';
+const ddv = () => ((G && G.patch) || (IDX && IDX.games[0].patch) || '16.18') + '.1';
+const itemName = id => (ITEMS && ITEMS[id] && ITEMS[id].name) || ('item ' + id);
+const fbGet = (mid, t0) => FB[mid + '|' + t0];
+function fbSet(mid, t0, data) { FB[mid + '|' + t0] = data; try { localStorage.setItem(FBKEY, JSON.stringify(FB)); } catch (e) {} }
+const nReviewed = mid => Object.keys(FB).filter(k => k.startsWith(mid + '|')).length;
+
+/* ---------- índice ---------- */
+function renderIndex() {
+  $('dock').classList.add('hidden');
+  document.title = 'Revisión macro · Videns';
+  const players = {};
+  for (const g of IDX.games) (players[g.label] = players[g.label] || []).push(g);
+  const totalDec = IDX.games.reduce((a, g) => a + g.n, 0);
+  const totalRev = Object.keys(FB).length;
+  const verd = { agree:0, disagree:0, unclear:0 };
+  for (const k in FB) if (verd[FB[k].verdict] !== undefined) verd[FB[k].verdict]++;
+
+  let h = '<p class="eyebrow">macro coach · corpus challenger</p>'
+    + '<h1>Revisión de decisiones — ' + IDX.games.length + ' partidas</h1>'
+    + '<p class="lead">Cada decisión de jungla con sus tres minimapas (sin niebla, niebla azul, niebla roja), '
+    + 'la build de los diez, el oro del HUD y la última tienda del POV. Los veredictos se guardan en este navegador.</p>'
+    + '<div class="figs">'
+    + '<div class="fig"><b>' + totalDec.toLocaleString('es') + '</b><span>decisiones</span></div>'
+    + '<div class="fig"><b>' + totalRev.toLocaleString('es') + '</b><span>revisadas</span></div>'
+    + '<div class="fig"><b>' + verd.agree + ' · ' + verd.disagree + ' · ' + verd.unclear + '</b><span>acuerdo · desacuerdo · dudosas</span></div>'
+    + '</div>';
+
+  for (const label of Object.keys(players).sort()) {
+    const gs = players[label];
+    h += '<div class="player-h"><h2>' + esc(label) + '</h2><span>' + gs.length + ' partidas · '
+      + gs.reduce((a, g) => a + g.n, 0) + ' decisiones</span></div><div class="games">';
+    for (const g of gs) {
+      const done = nReviewed(g.mid);
+      h += '<a class="gcard" href="#/' + g.mid + '">' + champImg(g.champ)
+        + '<div class="in"><b>' + esc(g.champ) + ' <span class="side ' + (g.team === 100 ? 'b">azul' : 'r">rojo') + '</span></b>'
+        + '<small>' + esc(g.mid) + ' · ' + mmss(g.dur) + ' · ' + esc(g.patch || '') + '</small>'
+        + '<div class="prog"><div style="width:' + (100 * done / g.n).toFixed(0) + '%"></div></div></div>'
+        + '<div class="n"><em>' + done + '</em>/' + g.n + '<br>revisadas</div></a>';
+    }
+    h += '</div>';
+  }
+  $('view').innerHTML = h;
+}
+
+/* ---------- partida ---------- */
+async function loadGame(mid, k) {
+  if (Gmid !== mid) {
+    $('view').innerHTML = '<div class="loading">Cargando ' + esc(mid) + '…</div>';
+    const r = await fetch('review-data/' + mid + '.json');
+    if (!r.ok) { $('view').innerHTML = '<div class="loading">No existe ' + esc(mid) + '.</div>'; return; }
+    G = await r.json();
+    G.patch = (IDX.games.find(g => g.mid === mid) || {}).patch;
+    Gmid = mid;
+  }
+  i = Math.min(Math.max(k || 0, 0), G.decisions.length - 1);
+  renderDecision();
+}
+
+function stripHtml() {
+  return '<div class="strip" id="strip">' + G.decisions.map((d, k) => {
+    const fb = fbGet(Gmid, d.t0);
+    return '<button style="--c:' + famColor(d.token) + '" class="' + (k === i ? 'cur ' : '') + (fb ? 'done' : '')
+      + '" data-k="' + k + '" title="' + mmss(d.t0) + ' · ' + esc(IDX.display[d.token] || d.token)
+      + (fb ? ' · ' + fb.verdict : '') + '"></button>';
+  }).join('') + '</div>';
+}
+
+function visionHtml(v) {
+  if (!v.available) return '<div class="visrow">visibilidad no disponible (sin pasadas con niebla)</div>';
+  const chips = '<span class="echips">' + (v.enemies || []).map(e =>
+    '<span class="echip' + (e.known ? '' : ' unk') + (e.dead ? ' dead' : '') + '">' + champImg(e.champ)
+    + '<span>' + (e.known ? (e.dead ? 'muerto' : Math.round(e.conf) + '%') : '¿?') + '</span></span>').join('') + '</span>';
+  if (v.info_pct === null || v.info_pct === undefined)
+    return '<div class="visrow"><span class="nou">visibilidad no utilizable</span>'
+      + (v.reason ? '<span>(' + esc(v.reason) + ')</span>' : '')
+      + '<span>conocidos ' + (v.n_known ?? 0) + '/' + (v.n_enemies ?? 5) + '</span>' + chips + '</div>';
+  return '<div class="visrow"><span>info de los conocidos (' + v.n_known + '/' + v.n_enemies + '):</span>'
+    + '<b>' + v.info_pct + '%</b><span class="bar"><div style="width:' + v.info_pct + '%"></div></span>' + chips + '</div>';
+}
+
+function shopHtml(cmp) {
+  if (!cmp || !cmp.length) return '<div class="shop"><span class="lbl">Última tienda del POV</span><span class="none">sin compras previas</span></div>';
+  return '<div class="shop"><span class="lbl">Última tienda del POV · hace ' + cmp[0].hace_s + 's</span>'
+    + cmp.map(b => {
+      const oro = b.oro != null ? '<i>' + b.oro.toLocaleString('es') + ' oro</i>'
+        : (b.intervalo ? '<u>' + b.intervalo[0] + '–' + b.intervalo[1] + ' oro</u>' : '<s>¿oro?</s>');
+      return '<span class="buy">' + itemImg(b.item) + '<span><b>' + esc(itemName(b.item)) + '</b>'
+        + '<span>con ' + oro + (b.verificado ? '' : ' <small>(acotado)</small>') + '</span></span></span>';
+    }).join('') + '</div>';
+}
+
+function objsHtml(o) {
+  if (!o) return '';
+  const pair = k => '<b>' + (o[k] && o[k]['100'] || 0) + '</b>–<i>' + (o[k] && o[k]['200'] || 0) + '</i>';
+  let h = '<div class="objs">'
+    + '<span>DRAGONES ' + pair('dragons') + '</span>'
+    + '<span>LARVAS ' + pair('grubs') + '</span>'
+    + '<span>HERALDO ' + pair('herald') + '</span>'
+    + '<span>BARÓN ' + pair('baron') + '</span>'
+    + '<span>TORRES PERDIDAS ' + pair('towers_lost') + '</span>';
+  if (o.soul_team) h += '<span>ALMA <em>' + (o.soul_team == 100 ? 'azul' : 'rojo') + '</em></span>';
+  if (o.next_dragon_in != null && o.next_dragon_in > 0) h += '<span>DRAGÓN EN <em>' + mmss(o.next_dragon_in) + '</em></span>';
+  return h + '</div>';
+}
+
+function teamsHtml(d) {
+  const oro = d.oro;
+  let h = '';
+  for (const team of [100, 200]) {
+    h += '<div class="team ' + (team === 100 ? 'b' : 'r') + '"><h5>' + (team === 100 ? 'Equipo azul' : 'Equipo rojo') + '</h5>';
+    d.players.forEach((p, idx) => {
+      if (p.team !== team) return;
+      const o = p.observed || {};
+      const saw = !o.known ? '<span class="unk">desconocido</span>'
+        : (o.source === 'muerto' ? 'muerto'
+          : (o.source === 'ultimo_avistamiento'
+            ? esc(reg(o.region_team)) + ' <span class="saw">(visto hace ' + o.age_s + 's)</span>'
+            : esc(reg(o.region_team))));
+      const g = oro && oro.gold ? oro.gold[idx] : null;
+      const cell = g ? g[0].toLocaleString('es') + '<small> (' + g[1].toLocaleString('es') + ')</small>' : '—';
+      h += '<div class="prow' + (p.pid === G.pid ? ' me' : '') + (p.dead ? ' dead' : '') + '">'
+        + champImg(p.champ)
+        + '<div class="id"><b>' + esc(p.champ) + '</b><span class="lv">n' + (p.level ?? '?') + '</span><span class="rl">' + esc(p.role) + '</span>'
+        + '<small>' + esc(reg(p.region_team)) + ' · sabía: ' + saw + '</small></div>'
+        + '<div class="eco"><span class="g">' + cell + '</span>'
+        + '<div class="items">' + (p.items || []).filter(x => x).map(itemImg).join('') + '</div></div></div>';
+    });
+    h += '</div>';
+  }
+  h += '<p class="goldnote">' + (oro
+    ? 'oro HUD actual (total) · lectura de hace ' + oro.edad_s + 's · región real y lo que sabía el POV'
+    : 'sin lectura de oro HUD para este instante') + '</p>';
+  return h;
+}
+
+function renderDecision() {
+  const d = G.decisions[i];
+  const disp = IDX.display[d.token] || d.token;
+  const tc = famColor(d.token);
+  document.title = mmss(d.t0) + ' ' + disp + ' · ' + G.seed + ' · Videns';
+  const done = nReviewed(Gmid);
+
+  const mapDefs = [['omni', 'sin niebla · verdad'], ['blue', 'niebla azul'], ['red', 'niebla roja']];
+  const maps = mapDefs.map(([k, lab]) => {
+    const m = d.minimap[k];
+    return '<figure>' + (m
+      ? '<img src="review-data/' + m.img + '" alt="' + lab + '" data-cap="' + lab + ' · dt ' + m.dt + 's" loading="eager">'
+      : '<div class="void">sin pasada</div>')
+      + '<figcaption><b>' + lab + '</b>' + (m ? ' · dt ' + m.dt + 's' : '') + '</figcaption></figure>';
+  }).join('');
+
+  $('view').innerHTML =
+    '<div class="ghead">' + champImg(G.champ)
+    + '<div><h1>' + esc(G.seed) + ' · ' + esc(G.champ)
+    + ' <span class="side ' + (G.team === 100 ? 'b">lado azul' : 'r">lado rojo') + '</span></h1>'
+    + '<div class="sub"><a class="bc" href="#/">&larr; partidas</a> · ' + esc(Gmid) + ' · patch ' + esc(G.patch || '') + '</div></div>'
+    + '<div class="pos"><b>' + (i + 1) + ' / ' + G.decisions.length + '</b><span>' + done + ' revisadas</span></div></div>'
+    + stripHtml()
+    + '<div class="cols"><div>'
+    +   '<div class="panel" style="--tc:' + tc + '">'
+    +     '<div class="tokbar"><span class="fam"></span><time>' + mmss(d.t0) + '–' + mmss(d.t1) + '</time>'
+    +     '<span class="tk">decidió <i>' + esc(disp) + '</i></span><code>' + esc(d.token) + '</code></div>'
+    +     '<div class="maps">' + maps + '</div>'
+    +     visionHtml(d.vision) + shopHtml(d.compras) + objsHtml(d.objectives)
+    +   '</div>'
+    + '</div><div>'
+    +   '<div class="panel"><h4>Los diez · en el instante de la decisión</h4>' + teamsHtml(d) + '</div>'
+    + '</div></div>';
+
+  $('strip').addEventListener('click', e => {
+    const b = e.target.closest('button[data-k]');
+    if (b) go(+b.dataset.k);
+  });
+  const cur = $('strip').querySelector('.cur');
+  if (cur) cur.scrollIntoView({ block: 'nearest', inline: 'center' });
+  for (const img of $('view').querySelectorAll('.maps img'))
+    img.addEventListener('click', () => openLb(img.src, img.dataset.cap));
+
+  const fb = fbGet(Gmid, d.t0);
+  $('vAgree').classList.toggle('on', fb && fb.verdict === 'agree');
+  $('vDis').classList.toggle('on', fb && fb.verdict === 'disagree');
+  $('vUnc').classList.toggle('on', fb && fb.verdict === 'unclear');
+  $('note').value = (fb && fb.note) || '';
+  $('dock').classList.remove('hidden');
+
+  // precarga de la siguiente decisión
+  const nx = G.decisions[i + 1];
+  if (nx) for (const k of ['omni', 'blue', 'red'])
+    if (nx.minimap[k]) new Image().src = 'review-data/' + nx.minimap[k].img;
+}
+
+/* ---------- veredictos ---------- */
+function verdict(v) {
+  if (!G) return;
+  const d = G.decisions[i];
+  fbSet(Gmid, d.t0, { verdict: v, note: $('note').value.trim(), token: d.token,
+    pid: G.pid, ts: new Date().toISOString().slice(0, 19).replace('T', ' ') });
+  if (i < G.decisions.length - 1) go(i + 1); else renderDecision();
+}
+function saveNote() {
+  if (!G) return;
+  const d = G.decisions[i], fb = fbGet(Gmid, d.t0);
+  if (fb) { fb.note = $('note').value.trim(); fbSet(Gmid, d.t0, fb); }
+}
+function exportFb() {
+  const lines = [];
+  for (const k in FB) {
+    const [mid, t0] = [k.slice(0, k.lastIndexOf('|')), +k.slice(k.lastIndexOf('|') + 1)];
+    const f = FB[k];
+    lines.push(JSON.stringify({ match_id: mid, pid: f.pid, t0: t0, token: f.token,
+      verdict: f.verdict, note: f.note || '', ts: f.ts, src: 'web' }));
+  }
+  if (!lines.length) { alert('Sin veredictos todavía.'); return; }
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([lines.join('\n') + '\n'], { type: 'application/json' }));
+  a.download = 'feedback.jsonl';
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+/* ---------- lightbox ---------- */
+function openLb(src, cap) { $('lbImg').src = src; $('lbCap').textContent = cap || ''; $('lb').classList.add('open'); }
+$('lb').addEventListener('click', () => $('lb').classList.remove('open'));
+
+/* ---------- routing ---------- */
+function go(k) { location.hash = '#/' + Gmid + '/' + k; }
+async function route() {
+  const parts = location.hash.replace(/^#\/?/, '').split('/').filter(Boolean);
+  if (!IDX) return;
+  if (!parts.length) { G = null; Gmid = null; renderIndex(); }
+  else await loadGame(parts[0], parts[1] ? +parts[1] : 0);
+}
+addEventListener('hashchange', route);
+
+$('bPrev').onclick = () => G && go(Math.max(0, i - 1));
+$('bNext').onclick = () => G && go(Math.min(G.decisions.length - 1, i + 1));
+$('vAgree').onclick = () => verdict('agree');
+$('vDis').onclick = () => verdict('disagree');
+$('vUnc').onclick = () => verdict('unclear');
+$('bExport').onclick = e => { e.preventDefault(); exportFb(); };
+$('note').addEventListener('keydown', e => { if (e.key === 'Enter') { saveNote(); e.target.blur(); } });
+$('note').addEventListener('change', saveNote);
+
+document.addEventListener('keydown', e => {
+  if (e.target.tagName === 'INPUT' || !G) {
+    if (e.key === 'Escape') e.target.blur();
+    return;
+  }
+  if (e.key === 'ArrowRight') $('bNext').click();
+  else if (e.key === 'ArrowLeft') $('bPrev').click();
+  else if (e.key === 'a' || e.key === 'A') verdict('agree');
+  else if (e.key === 'x' || e.key === 'X') verdict('disagree');
+  else if (e.key === 'd' || e.key === 'D') verdict('unclear');
+  else if (e.key === 'n' || e.key === 'N') { e.preventDefault(); $('note').focus(); }
+  else if (e.key === 'Escape') $('lb').classList.remove('open');
+});
+
+/* ---------- arranque ---------- */
+(async () => {
+  try {
+    const r = await fetch('review-data/games.json');
+    IDX = await r.json();
+  } catch (e) {
+    $('view').innerHTML = '<div class="loading">No se pudo cargar review-data/games.json — ¿está exportado el corpus?</div>';
+    return;
+  }
+  route();
+  // nombres de item en español, para tooltips y la tienda; si falla, ids
+  try {
+    const r = await fetch(DD(ddv() + '/data/es_ES/item.json'));
+    ITEMS = (await r.json()).data;
+    if (G) renderDecision();
+  } catch (e) {}
+})();
+</script>
+</body>
+</html>
