@@ -1,0 +1,2490 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Search · Videns</title>
+<meta name="description" content="Look up a Riot ID: rank, recent games, season champion stats, win rate, KDA and builds, straight from the Riot API.">
+<meta name="robots" content="noindex">
+<meta name="theme-color" content="#0a090e">
+<link rel="preconnect" href="https://ddragon.leagueoflegends.com" crossorigin>
+<link rel="preconnect" href="https://raw.communitydragon.org" crossorigin>
+<link rel="preload" href="fonts/inter-var-latin.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="site.css">
+<link rel="icon" href="favicon.ico" sizes="32x32">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="manifest" href="site.webmanifest">
+<style>
+  /* Palette (incl. win/loss surfaces), font, header and footer come from site.css. */
+  *{box-sizing:border-box}
+  html{scrollbar-gutter:stable}
+  body{margin:0;background:var(--bg);color:var(--text);font:400 14px/1.45 var(--font);
+    font-variant-numeric:tabular-nums;-webkit-font-smoothing:antialiased;overflow-x:hidden;
+    min-height:100vh;display:flex;flex-direction:column}
+  a{color:inherit}
+  img{max-width:100%;display:block}
+  button,input,select{font:inherit;color:inherit}
+  button{cursor:pointer}
+  [hidden]{display:none!important}
+  :focus-visible{outline:2px solid var(--mark);outline-offset:2px}
+  .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+  main{flex:1}
+
+  /* Image slots: a neutral surface while loading, the art fades in, a broken image leaves the slot. */
+  .pic{display:inline-block;flex:none;position:relative;overflow:hidden;background:var(--slot-c,var(--slot));vertical-align:middle}
+  .pic img{width:100%;height:100%;object-fit:cover;opacity:0;transition:opacity .2s ease}
+  .pic img.ok{opacity:1}
+  .pic img.bad{visibility:hidden}
+  .pic.bare.ok{background:transparent}
+  .pic.ch img{transform:scale(1.1)}
+
+  /* ---------- nav ---------- */
+  .nsearch{display:none;align-items:stretch;height:36px;width:min(340px,100%);background:var(--raised);border:1px solid var(--line);border-radius:var(--r-sm);overflow:hidden}
+  body:not([data-mode=landing]) .nsearch{display:flex}
+  .nsearch:focus-within{border-color:var(--mark)}
+  .nsearch :focus-visible{outline-offset:-2px}
+  .nsearch .sel{border-right:1px solid var(--line-2)}
+  .nsearch select{font-size:.6875rem;padding:0 1.5rem 0 .65rem}
+  .nsearch .sel::after{right:.55rem}
+  .nsearch input{flex:1;min-width:0;border:0;background:transparent;padding:0 .65rem;font-size:.8125rem;outline:0}
+  .nsearch input::placeholder{color:var(--dim)}
+  .nsearch button{flex:none;width:40px;border:0;background:var(--fill);color:var(--on-gold);display:grid;place-items:center}
+  .nsearch button svg{width:16px;height:16px}
+  .nsearch button:hover{background:var(--fill-hover)}
+  @media(max-width:759px){
+    .nav .tools{grid-column:1/-1;grid-row:2}
+    .nsearch{width:100%;margin:0 0 10px}
+    /* 16px keeps iOS from zooming the page when a field takes focus. */
+    .nsearch input,.nsearch select{font-size:16px}
+  }
+
+  .sel{position:relative;flex:none;display:flex}
+  .sel select{appearance:none;-webkit-appearance:none;border:0;background:transparent;font-weight:700;
+    letter-spacing:.04em;color:var(--text);cursor:pointer;outline-offset:-3px}
+  .sel select option{background:var(--raised);color:var(--text)}
+  .sel::after{content:"";position:absolute;top:50%;border:4px solid transparent;border-top-color:var(--muted);
+    border-bottom:0;transform:translateY(-25%);pointer-events:none}
+
+  /* ---------- landing ---------- */
+  .hero{display:none;position:relative;text-align:center;padding:clamp(3rem,11vh,6rem) 0 1.5rem}
+  body[data-mode=landing] .hero{display:block}
+  /* The landing glow is painted on the page background, so it can never widen the document. */
+  .hero .eyebrow{margin:0 0 .9rem;font-size:.875rem;font-weight:600;color:var(--muted)}
+  .hero h1{margin:0;font-size:clamp(2rem,6vw,3.25rem);font-weight:900;letter-spacing:-.05em;line-height:1}
+  .hero h1 em{font-style:normal;color:var(--gold)}
+  .hero .lede{margin:.85rem auto 0;color:var(--muted);max-width:34rem;font-size:1rem}
+  .bigsearch{display:flex;align-items:stretch;max-width:680px;height:56px;margin:1.75rem auto 0;background:var(--raised);border:1px solid var(--line-2);border-radius:var(--r-md);overflow:hidden}
+  .bigsearch:focus-within{border-color:var(--mark)}
+  .bigsearch .sel{border-right:1px solid var(--line-2)}
+  .bigsearch select{font-size:.8125rem;padding:0 1.9rem 0 1rem}
+  .bigsearch .sel::after{right:.8rem}
+  .bigsearch .field{flex:1;min-width:0;display:flex;flex-direction:column;justify-content:center;padding:0 1rem;text-align:left}
+  .bigsearch label{font-size:.75rem;font-weight:600;color:var(--dim);line-height:1}
+  .bigsearch input{border:0;background:transparent;outline:0;padding:0;margin-top:5px;font-size:1rem;font-weight:500;width:100%}
+  .bigsearch input::placeholder{color:var(--dim)}
+  .bigsearch .go{flex:none;border:0;padding:0 1.5rem;background:var(--fill);color:var(--on-gold);font-weight:800;font-size:1rem;letter-spacing:-.01em;outline-offset:-3px;box-shadow:var(--fill-shadow)}
+  .bigsearch .go:hover{background:var(--fill-hover)}
+  @media(max-width:759px){
+    .bigsearch{height:52px}
+    .bigsearch select{padding:0 1.6rem 0 .7rem;font-size:.75rem}
+    .bigsearch .sel::after{right:.6rem}
+    .bigsearch .field{padding:0 .75rem}
+    .bigsearch .go{padding:0 1rem;font-size:.9375rem}
+  }
+  .recent{display:flex;justify-content:center;align-items:center;flex-wrap:wrap;gap:.45rem;max-width:680px;margin:1rem auto 0;
+    font-size:.75rem;color:var(--dim)}
+  .chip{border:0;background:var(--card);color:var(--muted);border-radius:999px;padding:.3rem .85rem;font-size:.8125rem}
+  .chip:hover{background:var(--raised);color:var(--text)}
+  .chip b{color:var(--dim);font-weight:600;margin-left:.35rem;font-size:.6875rem}
+  .hero .fine{margin:1.5rem 0 0;font-size:.75rem;color:var(--dim)}
+  .hero .fine b{color:var(--muted);font-weight:600}
+
+  /* ---------- states ---------- */
+  .state{margin:12px 0 0}
+  .state:empty{display:none}
+  body[data-mode=landing] .state{max-width:680px;margin:1rem auto 0;text-align:left}
+  .error{background:rgba(var(--red-rgb),.12);color:var(--red-t);border-radius:var(--r-sm);padding:.85rem 1.1rem;font-size:.875rem}
+  .error b{color:var(--text)}
+  .error small{display:block;margin-top:.35rem;color:var(--red-t);font-size:.8125rem}
+  .error code{font-family:var(--mono);font-size:.75rem;background:rgba(0,0,0,.35);padding:.1rem .35rem;border-radius:4px;color:var(--text)}
+  .loading{display:none}
+  body[data-mode=loading] .loading{display:block}
+  .progress{display:flex;align-items:center;gap:.85rem;margin:12px 0 0;padding:.9rem 1.1rem;background:var(--card);border-radius:var(--r-md);color:var(--muted);font-size:.8125rem}
+  .progress b{color:var(--text);font-weight:600}
+  .progress small{display:block;color:var(--dim);font-size:.75rem}
+  .spinner{width:16px;height:16px;flex:none;border:2px solid var(--line-2);border-top-color:var(--mark);border-radius:50%;
+    animation:spin .8s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .sk{display:block;border-radius:var(--r-sm);background:var(--card);animation:skpulse 1.4s ease-in-out infinite}
+  @keyframes skpulse{50%{background:var(--raised)}}
+  @keyframes shine{from{background-position:120% 0}to{background-position:-120% 0}}
+  .sk-ph{display:flex;gap:20px;align-items:center;padding:24px 0 20px}
+  .sk-av{width:96px;height:96px;border-radius:var(--r-lg);flex:none}
+  .sk-lines{display:grid;gap:10px;flex:1}
+  .sk-l1{width:min(260px,70%);height:24px}.sk-l2{width:min(180px,50%);height:12px}.sk-l3{width:96px;height:32px}
+  .sk-tabs{height:40px;border-radius:0 0 4px 4px}
+  .sk-fbar{height:46px;margin-top:8px}
+  .sk-rank{height:120px}.sk-sum{height:150px}.sk-row{height:98px}.sk-side{height:300px}
+  @media(max-width:759px){.sk-ph{gap:16px;padding:18px 0 16px}.sk-av{width:72px;height:72px;border-radius:var(--r-lg)}.sk-row{height:150px}}
+
+  /* ---------- profile header ---------- */
+  .profile{display:none}
+  body[data-mode=results] .profile{display:block}
+  .ph{display:flex;gap:22px;align-items:center;padding:24px 0 20px}
+  .avatar{position:relative;flex:none;width:96px;height:96px}
+  .avatar .pic{width:96px;height:96px;border-radius:var(--r-lg)}
+  .avatar .lvl{position:absolute;left:50%;bottom:-9px;transform:translateX(-50%);background:var(--raised-2);border-radius:999px;font-size:.75rem;font-weight:700;padding:1px 9px;white-space:nowrap}
+  .who{min-width:0;flex:1}
+  .nameline{display:flex;flex-wrap:wrap;align-items:center;gap:.3rem .7rem}
+  .nameline h1{margin:0;font-size:1.5rem;font-weight:800;letter-spacing:-.02em;line-height:1.2;overflow-wrap:anywhere}
+  .nameline h1 .tag{color:var(--muted);font-weight:500}
+  .corpus{font-size:.6875rem;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);background:var(--raised);border-radius:999px;padding:3px 9px;cursor:help}
+  .ph .meta{margin:.3rem 0 0;color:var(--muted);font-size:.8125rem;display:flex;flex-wrap:wrap;gap:.2rem .55rem;align-items:center}
+  .ph .meta i{color:var(--faint);font-style:normal}
+  .ph .meta b{color:var(--text);font-weight:600}
+  .acts{display:flex;align-items:center;gap:.9rem;margin-top:.8rem;flex-wrap:wrap}
+  .btn-gold{position:relative;display:inline-flex;align-items:center;gap:.45rem;height:36px;padding:0 1.2rem;border:0;border-radius:var(--r-sm);background:var(--fill);color:var(--on-gold);font-weight:700;font-size:.875rem;box-shadow:var(--fill-shadow)}
+  .btn-gold:hover{background:var(--fill-hover)}
+  .btn-gold:disabled{opacity:.75;cursor:progress;filter:none}
+  /* The spinner sits over the label, so the button keeps its width while busy. */
+  .btn-gold .spin{display:none;position:absolute;inset:0;margin:auto;width:12px;height:12px;border:2px solid rgba(24,19,10,.3);
+    border-top-color:var(--on-gold);border-radius:50%;animation:spin .8s linear infinite}
+  .btn-gold.busy{color:transparent}
+  .btn-gold.busy .spin{display:block}
+  .updated{font-size:.75rem;color:var(--dim)}
+  @media(max-width:759px){
+    .ph{gap:16px;padding:18px 0 16px}
+    .avatar,.avatar .pic{width:72px;height:72px}
+    .avatar .pic{border-radius:var(--r-lg)}
+    .nameline h1{font-size:1.25rem}
+  }
+
+  /* ---------- tabs + filter bar ---------- */
+  .vtabs{display:flex;gap:4px;border-bottom:1px solid var(--line)}
+  .vtabs button{border:0;background:none;padding:.65rem .95rem .6rem;font-weight:600;font-size:.875rem;color:var(--muted);
+    border-bottom:2px solid transparent;margin-bottom:-1px}
+  .vtabs button:hover{color:var(--text)}
+  .vtabs button[aria-selected=true]{color:var(--text);border-bottom-color:var(--mark)}
+  .fbar{display:flex;align-items:center;gap:8px;margin:8px 0 0;padding:6px;background:var(--surface);border-radius:var(--r-md);box-shadow:var(--surface-shadow)}
+  .qtabs{display:flex;flex-wrap:wrap;gap:2px;min-width:0;flex:1}
+  .qtabs button{flex:none;border:0;background:none;border-radius:4px;padding:.4rem .65rem;font-weight:600;font-size:.8125rem;
+    color:var(--muted);white-space:nowrap;display:inline-flex;align-items:center;gap:.4rem}
+  .qtabs button:hover{background:var(--raised);color:var(--text)}
+  .qtabs button[aria-pressed=true]{background:var(--raised-2);color:var(--text)}
+  .qtabs .n{font-size:.6875rem;font-weight:600;color:var(--muted);background:rgba(255,255,255,.06);border-radius:999px;
+    padding:0 .4rem;min-width:1.25rem;text-align:center}
+  .qtabs button[aria-pressed=true] .n{color:var(--on-gold);background:var(--fill)}
+  .csearch{flex:none;display:flex;align-items:center;gap:.45rem;height:32px;width:210px;padding:0 .6rem;background:var(--raised);border:1px solid var(--line);border-radius:var(--r-sm);color:var(--dim)}
+  .csearch svg{width:14px;height:14px;flex:none}
+  .csearch input{border:0;background:none;outline:0;width:100%;min-width:0;font-size:.8125rem;color:var(--text)}
+  .csearch input::placeholder{color:var(--dim)}
+  .csearch:focus-within{border-color:var(--mark)}
+  /* 16px keeps iOS from zooming the page when the champion field takes focus (after the 13px rule above). */
+  @media(max-width:759px){.fbar{flex-wrap:wrap}.csearch{width:100%}.csearch input{font-size:16px}.qtabs button{padding:.35rem .5rem;font-size:.75rem}}
+
+  /* ---------- layout ---------- */
+  /* Below 1080px the season card and played-with sit above the games, so the match list and its
+     Load more end the page (the owner asked for it at the bottom of the screen); the DOM order
+     (ranks, side, main) matches that reading order. Phones list the top 3 champions only. */
+  .cols{display:grid;gap:8px;margin:8px 0 0;align-items:start;grid-template-columns:minmax(0,1fr);
+    grid-template-areas:"ranks" "side" "main"}
+  .ranks{grid-area:ranks;display:grid;gap:8px;min-width:0;align-items:start}
+  .colmain{grid-area:main;display:grid;gap:8px;min-width:0}
+  .side{grid-area:side;display:grid;gap:8px;min-width:0}
+  @media(min-width:760px){.ranks{grid-template-columns:1fr 1fr}}
+  @media(min-width:760px) and (max-width:1079px){
+    /* Champion stats and played-with side by side; a lone card takes the full width. */
+    .side{grid-template-columns:repeat(auto-fit,minmax(320px,1fr));align-items:start}
+  }
+  @media(min-width:1080px){
+    .cols{grid-template-columns:312px minmax(0,1fr);grid-template-rows:auto 1fr;grid-template-areas:"ranks main" "side main"}
+    .ranks{grid-template-columns:minmax(0,1fr)}
+  }
+  .card{background:var(--surface);border-radius:var(--r-md);overflow:hidden;box-shadow:var(--surface-shadow)}
+  .card>h3{margin:0;display:flex;align-items:center;justify-content:space-between;gap:.6rem;padding:.6rem .85rem;
+    font-size:.8125rem;font-weight:700;border-bottom:1px solid var(--line)}
+  .card>h3 small{color:var(--dim);font-weight:500;font-size:.75rem;text-align:right}
+  .card>h3:last-child{border-bottom:0}
+  .muted{color:var(--muted)}
+  /* Doubled so the KDA tier colour beats element-qualified defaults such as ".cp b" or ".sbk small". */
+  .t1.t1{color:var(--muted)}.t3.t3{color:var(--text)}.t4.t4{color:var(--blue-t)}.t5.t5{color:var(--gold)}
+  .hot{color:var(--gold)!important}
+
+  /* rank cards */
+  .rk{display:flex;flex-wrap:wrap;align-items:center;gap:.3rem .9rem;padding:.8rem .85rem}
+  .pic.emblem{width:72px;height:72px;border-radius:50%;background:var(--raised)}
+  .pic.emblem img{object-fit:cover;transform:scale(1.55)}
+  .rk .rt{min-width:0}
+  .rk .rt b{display:block;font-size:1.25rem;font-weight:800;letter-spacing:-.01em;line-height:1.15;white-space:nowrap}
+  /* The 312px left column: a smaller tier line keeps "Grandmaster" clear of the W/L block;
+     if a line is still too long the W/L block wraps under it instead of overlapping. */
+  @media(min-width:1080px){.rk{column-gap:.75rem}.rk .rt b{font-size:1.125rem}}
+  .rk .rt span{display:block;color:var(--muted);font-size:.8125rem;margin-top:.1rem}
+  .rk .rr{margin-left:auto;text-align:right;font-size:.75rem;color:var(--muted);line-height:1.6;white-space:nowrap}
+  .rk .rr span{display:block}
+  .rk .rr span:first-child{color:var(--text);font-weight:600}
+  .streak{display:inline-flex!important;align-items:center;gap:.25rem;margin-top:.4rem!important;font-size:.6875rem!important;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--on-gold)!important;background:var(--fill);border-radius:999px;padding:2px 8px}
+  .streak svg{width:10px;height:10px}
+  .card>h3 .unr{color:var(--muted);font-weight:500;font-size:.8125rem}
+  @media(max-width:759px){.rk{padding:.6rem .85rem}.pic.emblem{width:56px;height:56px}.rk .rt b{font-size:1.125rem}}
+
+  /* champion stats (left) */
+  .crow{display:grid;grid-template-columns:32px minmax(0,1fr) auto 3.4rem;gap:.7rem;align-items:center;padding:.45rem .85rem;
+    border-bottom:1px solid var(--line);font-size:.75rem}
+  .crow .pic{width:32px;height:32px;border-radius:50%}
+  .crow b{display:block;font-weight:700}
+  .crow small{display:block;color:var(--dim);font-size:.6875rem;white-space:nowrap}
+  .crow .cn b{font-size:.8125rem;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .crow .ck,.crow .cw{text-align:right}
+  /* Phones: the card sits above the games (see .cols), so it lists the top 3; "All champions" has the rest. */
+  @media(max-width:759px){#champcard .crow:nth-of-type(n+4){display:none}}
+  .more{display:block;width:100%;padding:.55rem;border:0;background:var(--raised);color:var(--muted);font-size:.75rem;font-weight:600}
+  .more:hover{color:var(--text);background:var(--raised-2)}
+  .empty{margin:0;padding:.8rem .85rem;color:var(--muted);font-size:.8125rem}
+
+  /* recently played with */
+  .pw{display:grid;grid-template-columns:24px minmax(0,1fr) 2.6rem 3.3rem 2.5rem;gap:.55rem;align-items:center;padding:.4rem .85rem;
+    border-bottom:1px solid var(--line);font-size:.75rem;color:var(--muted)}
+  .pw:last-child{border-bottom:0}
+  .pw>span:nth-child(n+3),.pw>b{text-align:right}
+  .pw.hd{padding:.4rem .85rem;font-size:.75rem;font-weight:600;color:var(--dim)}
+  .pw .pic{width:24px;height:24px;border-radius:50%}
+  .pw .pn{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text);font-weight:600;text-decoration:none}
+  .pw .pn span{color:var(--dim);font-weight:400}
+  .pw .pn:hover{text-decoration:underline}
+  .pw b{color:var(--text);font-weight:700}
+
+  /* summary card */
+  .sumg{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1.05fr) minmax(0,.9fr)}
+  .sumg.two{grid-template-columns:minmax(0,1.2fr) minmax(0,1fr)}
+  .sumg>div{padding:.8rem .9rem;min-width:0}
+  .sumg>div+div{border-left:1px solid var(--line)}
+  .sumg .hd{margin:0 0 .55rem;font-size:.75rem;color:var(--muted);font-weight:600}
+  .sumg .hd small{font-weight:500;color:var(--dim)}
+  @media(max-width:759px){.sumg,.sumg.two{grid-template-columns:minmax(0,1fr)}.sumg>div+div{border-left:0;border-top:1px solid var(--line)}}
+  @media(min-width:560px) and (max-width:759px){
+    .sumg,.sumg.two{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
+    .sumg>div:nth-child(2){border-top:0;border-left:1px solid var(--line)}
+    .sumg>div:nth-child(3){grid-column:1/-1}
+  }
+  .d1{display:flex;align-items:center;gap:1rem}
+  .donut{width:84px;height:84px;flex:none}
+  .donut .trk{fill:none;stroke:var(--red);stroke-width:9}
+  .donut .arc{fill:none;stroke:var(--blue);stroke-width:9}
+  .donut text{font:800 15px var(--font);fill:var(--text)}
+  .kline{font-size:.8125rem;color:var(--muted);white-space:nowrap}
+  .kline b{color:var(--text);font-weight:600}
+  .kline .d,.d{color:var(--red-t)!important}
+  .kbig{font-size:1.375rem;font-weight:800;letter-spacing:-.02em;line-height:1.25}
+  .kbig small{font-size:.75rem;font-weight:600;letter-spacing:0;color:var(--muted);margin-left:.25rem}
+  .sumg .kp{font-size:.75rem;color:var(--muted);margin:.1rem 0 0}
+  .sumg .kp b{color:var(--text);font-weight:700}
+  .sumg .kp small{color:var(--dim);font-size:.6875rem}
+  .cp{display:grid;grid-template-columns:24px 2.5rem auto auto;justify-content:start;align-items:center;gap:.45rem;font-size:.75rem;
+    color:var(--muted);white-space:nowrap;padding:.2rem 0}
+  .cp .pic{width:24px;height:24px;border-radius:50%}
+  .cp b{font-weight:700;color:var(--text)}
+  .bars{display:flex;justify-content:space-between;gap:.3rem;height:86px;align-items:stretch;max-width:240px}
+  .bar{flex:1;display:flex;flex-direction:column;align-items:center;gap:.3rem;min-width:0}
+  .bar .tr{flex:1;width:14px;background:var(--raised-2);border-radius:3px;display:flex;align-items:flex-end;overflow:hidden}
+  .bar .tr i{display:block;width:100%;background:var(--blue);border-radius:3px 3px 0 0}
+  .bar .pic.pos{width:16px;height:16px;opacity:.5}
+  .bar.on .pic.pos{opacity:1}
+  .bar small{font-size:.6875rem;color:var(--muted);line-height:1}
+  .bars.pl{max-width:none;height:96px}
+  .bars.pl .bar b{font-size:.6875rem;color:var(--muted);line-height:1;min-height:.625rem}
+  .bars.pl .tr{width:16px}
+  .bars.pl .p1 .tr i{background:var(--fill)}
+  .bars.pl .bot .tr i{background:var(--red)}
+  .bars.pl .p1 small{color:var(--gold)}
+  .empty-state{display:grid;justify-items:center;gap:.4rem;padding:2.2rem 1rem;text-align:center}
+  .empty-state svg{width:34px;height:34px;color:var(--faint)}
+  .empty-state b{font-size:.9375rem}
+  .empty-state span{color:var(--muted);font-size:.8125rem}
+  .empty-state .row{display:flex;gap:.5rem;flex-wrap:wrap;justify-content:center;margin-top:.4rem}
+  .ghost{border:0;background:var(--raised);border-radius:var(--r-sm);padding:.45rem .85rem;font-size:.8125rem;font-weight:600;color:var(--text)}
+  .ghost:hover{background:var(--raised-2)}
+
+  /* ---------- match rows ---------- */
+  .mlist{display:grid;gap:6px}
+  /* content-visibility: rows scrolled out of view skip layout and paint, so a long loaded list
+     (Load more) stays cheap to filter. The size is remembered once a row has rendered. */
+  .m{--rbg:var(--remake-bg);--slot-c:var(--remake-slot);--edge:#5d6472;--res:var(--muted);
+    background:var(--rbg);border-radius:var(--r-sm);overflow:hidden;border-left:5px solid var(--edge);
+    content-visibility:auto;contain-intrinsic-size:auto 100px}
+  .m:focus{outline-offset:1px}
+  .m.win{--rbg:var(--win-bg);--slot-c:var(--win-slot);--edge:var(--blue);--res:var(--blue-t)}
+  .m.loss{--rbg:var(--loss-bg);--slot-c:var(--loss-slot);--edge:var(--red);--res:var(--red-t)}
+  .m.first{--edge:var(--gold)}
+  .mrow{display:grid;grid-template-columns:112px minmax(0,1fr) 108px 212px 40px;min-height:100px}
+  .mmeta{padding:.6rem .2rem .6rem .65rem;font-size:.6875rem;color:var(--muted);line-height:1.5;display:flex;flex-direction:column;
+    justify-content:center;min-width:0;white-space:nowrap}
+  .mmeta .q{color:var(--res);font-weight:700;font-size:.75rem;letter-spacing:-.01em;overflow:hidden;text-overflow:ellipsis}
+  .mmeta .hr{display:block;width:44px;height:1px;background:rgba(255,255,255,.14);margin:.3rem 0}
+  .mmeta .res{color:var(--text);font-weight:700}
+  .m.first .mmeta .res,.m.first .mmeta .q{color:var(--gold)}
+  /* A size container, so the optional second badge shows only where the item line has room for it. */
+  .mgame{padding:.5rem .6rem .5rem .75rem;display:flex;flex-direction:column;justify-content:center;gap:.4rem;min-width:0;
+    container-type:inline-size}
+  .mgame .top{display:flex;align-items:center;gap:3px}
+  .portrait{position:relative;flex:none;margin-right:3px;line-height:0}
+  .portrait .pic{width:48px;height:48px;border-radius:50%}
+  .portrait .lvl{position:absolute;right:-3px;bottom:-3px;min-width:20px;height:20px;padding:0 4px;border-radius:999px;background:var(--bg);font-size:.6875rem;font-weight:700;line-height:20px;text-align:center}
+  .stack{display:grid;gap:2px;flex:none}
+  .stack .pic{width:22px;height:22px;border-radius:4px}
+  .stack .pic.rn{border-radius:50%}
+  .stack .pic.tree img{padding:3px;object-fit:contain}
+  .augs{display:grid;grid-template-rows:repeat(2,22px);grid-auto-flow:column;grid-auto-columns:22px;gap:2px;flex:none}
+  .aug{display:block;width:100%;height:100%;border-radius:50%;padding:1.5px;background:var(--ring,#5d6472)}
+  .aug .pic{display:block;width:100%;height:100%;border-radius:50%}
+  /* Rune and augment art has transparent edges: the dark disc goes in only once the art is there. */
+  .stack .pic.rn.ok,.aug .pic.ok{background:var(--sunk)}
+  .aug.r-silver{--ring:#aeb8c6}
+  .aug.r-gold{--ring:var(--gold)}
+  .aug.r-prismatic{--ring:conic-gradient(#8fd3ff,#c6a1ff,#ff9fcf,#ffd97a,#9ff0c8,#8fd3ff)}
+  .kda{flex:1;min-width:74px;text-align:center;margin-left:4px}
+  .kda .line{font-size:.9375rem;font-weight:700;white-space:nowrap;letter-spacing:-.01em;line-height:1.3}
+  .kda .line s{text-decoration:none;color:var(--muted);font-weight:400;margin:0 3px}
+  .kda .r{font-size:.6875rem;color:var(--muted);margin-top:1px;white-space:nowrap;line-height:1.35}
+  .kda .r.t5{color:var(--gold)}
+  .mgame .bot{display:flex;align-items:center;gap:.45rem;flex-wrap:nowrap;min-width:0}
+  .items{display:flex;gap:2px;flex:none}
+  .items .pic{width:22px;height:22px;border-radius:4px}
+  .items .pic.tk{border-radius:50%;margin-left:3px}
+  /* The first badge sits under the KDA ratio, which has room for it in every layout; a second one
+     (Most damage beside a multikill) follows the items only when the game block is wide enough. */
+  .badges{display:flex;gap:4px;min-width:0}
+  .kda .badges{justify-content:center;margin-top:3px}
+  .bot .b2{display:none}
+  @container (min-width:258px){.bot .b2{display:flex}}
+  .badge{font-size:.6875rem;font-weight:700;padding:2px 8px;border-radius:999px;white-space:nowrap;line-height:1.4;
+    min-width:0;overflow:hidden;text-overflow:ellipsis}
+  .badge.mk{background:var(--fill);color:var(--on-gold)}
+  .badge.md{background:var(--slot-c);color:var(--text)}
+  .mstats{align-self:center;border-left:1px solid rgba(255,255,255,.1);padding:.1rem .7rem;font-size:.6875rem;color:var(--muted);
+    line-height:1.6;min-width:0;white-space:nowrap}
+  .mstats b{color:var(--text);font-weight:600}
+  .mstats .kp b{color:var(--res)}
+  .mteams{align-self:center;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:0 .5rem;padding:.5rem .6rem .5rem 0;
+    font-size:.6875rem;min-width:0}
+  .tm{display:grid;gap:1px;min-width:0}
+  .pp{display:flex;align-items:center;gap:4px;height:16px;min-width:0;color:var(--muted);text-decoration:none}
+  .pp .pic{width:16px;height:16px;border-radius:3px}
+  .pp span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:5.5rem}
+  a.pp:hover span{color:var(--text);text-decoration:underline}
+  .pp.me span{color:var(--text);font-weight:700}
+  .pp.me .pic{box-shadow:0 0 0 1.5px var(--text)}
+  .mduos{grid-template-rows:repeat(4,auto);grid-auto-flow:column;gap:3px .4rem}
+  .dc{display:flex;align-items:center;gap:3px;padding:1px 4px;border-radius:4px;color:var(--muted);min-width:0}
+  .dc em{font-style:normal;font-weight:700;width:1.3rem;flex:none}
+  .dc.top em{color:var(--blue-t)}.dc.bot em{color:var(--red-t)}.dc.p1 em{color:var(--gold)}
+  .dc.me{background:rgba(255,255,255,.09)}
+  .dc a,.dc>span.di{line-height:0;border-radius:3px}
+  .dc .pic{width:16px;height:16px;border-radius:3px}
+  .mexp{border:0;background:var(--slot-c);color:var(--res);display:grid;place-items:center;width:40px;padding:0;outline-offset:-3px}
+  .mexp svg{width:18px;height:18px;transition:transform .2s ease}
+  .mexp[aria-expanded=true] svg{transform:rotate(180deg)}
+  .mexp:hover{filter:brightness(1.2)}
+  @media(max-width:759px){
+    .m{contain-intrinsic-size:auto 150px}
+    .mrow{grid-template-columns:minmax(0,1fr) 36px;grid-template-areas:"meta exp" "game exp" "stats exp";min-height:0}
+    .mmeta{grid-area:meta;flex-direction:row;flex-wrap:wrap;justify-content:flex-start;align-items:baseline;gap:0 .6rem;padding:.55rem .6rem 0 .7rem}
+    .mmeta .hr{display:none}
+    .mgame{grid-area:game;padding:.45rem .6rem .35rem .7rem}
+    .mstats{grid-area:stats;border-left:0;display:flex;flex-wrap:wrap;gap:0 .8rem;padding:0 .6rem .55rem .7rem;white-space:normal}
+    .mstats>div{white-space:nowrap}
+    .mteams{display:none}
+    .mexp{grid-area:exp;width:36px}
+  }
+
+  /* ---------- expanded game ---------- */
+  .mdetail{--slot-c:var(--slot);--sbbg:var(--sunk);background:var(--sbbg);border-top:1px solid rgba(0,0,0,.45);padding:.6rem .7rem .7rem;display:grid;grid-template-columns:minmax(0,1fr);gap:.6rem}
+  .rmk{margin:0;font-size:.75rem;color:var(--muted)}
+  /* Wide tables scroll inside their own box; a right-edge fade says there is more (class set from JS). */
+  .sbx,.ctwrap{overflow-x:auto;position:relative}
+  .sbx.fr,.ctwrap.fr{-webkit-mask-image:linear-gradient(to left,transparent,#000 44px);mask-image:linear-gradient(to left,transparent,#000 44px)}
+  .sbt{min-width:0}
+  .sb{width:100%;min-width:680px;border-collapse:collapse;table-layout:fixed;font-size:.75rem}
+  /* Fixed columns are sized to their content; the Player column takes whatever is left. */
+  .sb col.c-aug{width:100px}.sb col.c-ch{width:92px}.sb col.c-kda{width:106px}.sb col.c-dmg{width:80px}.sb col.c-w{width:70px}.sb col.c-cs{width:50px}.sb col.c-it{width:168px}
+  /* ARAM Mayhem: augments get their own column, so the champion cell drops the rune stack. */
+  .sb.augcol col.c-ch{width:72px}.sb.augcol col.c-dmg{width:80px}
+  .sb th{font-size:.75rem;font-weight:600;color:var(--dim);text-align:left;
+    padding:.3rem .4rem;border-bottom:1px solid var(--line);white-space:nowrap}
+  .sb td{padding:.3rem .4rem;border-bottom:1px solid var(--line);vertical-align:middle}
+  /* The champion column stays put while the rest scrolls sideways on narrow screens. */
+  .sb th:first-child,.sb td:first-child{position:sticky;left:0;z-index:1;background:var(--sbbg)}
+  .sb tbody tr:last-child td{border-bottom:0}
+  .sb tr.me td{background:var(--raised)}
+  .sb tr.me td:first-child{background:var(--raised);box-shadow:inset 3px 0 0 var(--mark)}
+  .thd{display:flex;align-items:center;flex-wrap:wrap;gap:.2rem .6rem;font-size:.75rem;color:var(--muted);padding:0 0 .35rem}
+  .thd>b{font-size:.8125rem}
+  .thd.win>b{color:var(--blue-t)}.thd.loss>b{color:var(--red-t)}.thd.remake>b{color:var(--text)}
+  .thd .sd{display:inline-flex;align-items:center;gap:.35rem}
+  .thd .sd::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--faint)}
+  .thd.s100 .sd::before{background:var(--blue)}.thd.s200 .sd::before{background:var(--red)}
+  .thd .tt b{color:var(--text);font-weight:600}
+  .obs{display:flex;flex-wrap:wrap;gap:.2rem .55rem;margin-left:auto}
+  .ob{display:inline-flex;align-items:center;gap:3px;color:var(--muted)}
+  .ob svg{width:13px;height:13px}
+  .thd.s100 .ob svg{color:var(--blue-t)}.thd.s200 .ob svg{color:var(--red-t)}
+  .ob b{color:var(--text);font-weight:600}
+  .sbc{display:flex;align-items:center;gap:3px}
+  .portrait.sm .pic{width:32px;height:32px}
+  .portrait.sm .lvl{min-width:16px;height:16px;line-height:14px;font-size:.5625rem;right:-3px;bottom:-3px;padding:0 2px}
+  .stack.sm .pic{width:15px;height:15px;border-radius:3px}
+  .stack.sm .pic.rn{border-radius:50%}
+  .stack.sm .pic.tree img{padding:2px}
+  .augs.sm{grid-template-rows:repeat(2,15px);grid-auto-columns:15px}
+  .augs.sm .aug{padding:1px}
+  .sbp{min-width:0;line-height:1.3}
+  .sbp .nm{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600;color:var(--text);text-decoration:none}
+  a.nm:hover{text-decoration:underline}
+  /* The #tag rides on the small line, so the name gets the whole cell width. */
+  .sbp small{display:block;color:var(--muted);font-size:.6875rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  tr.me .nm,.ap.me .nm{color:var(--gold)}
+  .sbk{line-height:1.3;white-space:nowrap}
+  .sbk b{font-weight:700}
+  .sbk small{display:block;font-size:.6875rem;color:var(--muted);overflow:hidden;text-overflow:ellipsis}
+  .sbd{display:grid;gap:3px;font-size:.6875rem;color:var(--text)}
+  .dbar{display:block;height:6px;background:var(--raised-2);border-radius:3px;overflow:hidden}
+  /* One colour meaning per panel: bars follow the side (Rift / ARAM) or the placement band (Arena),
+     the same hues as the kills / gold comparison and the duo edges. "Your team" is the table order + gold row. */
+  .dbar i{display:block;height:100%;background:var(--muted);border-radius:3px}
+  .sb.s100 .dbar i{background:var(--blue-t)}.sb.s200 .dbar i{background:var(--red-t)}
+  .ap .dbar i{background:var(--dct,var(--muted))}
+  .sbw{white-space:nowrap;color:var(--muted)}
+  .sbcs{line-height:1.3}.sbcs small{display:block;font-size:.6875rem;color:var(--muted)}
+  .items.sm .pic{width:20px;height:20px}
+  .items.sm .pic.tk{margin-left:2px}
+  .cmp{display:grid;gap:.35rem;padding:.55rem .6rem;background:var(--card);border-radius:var(--r-sm)}
+  .cr{display:grid;grid-template-columns:3.8rem 3.3rem minmax(0,1fr) 3.3rem;align-items:center;gap:.5rem;font-size:.75rem}
+  .cr em{font-style:normal;color:var(--muted);font-size:.6875rem;text-transform:uppercase;letter-spacing:.06em}
+  .cr .bl{color:var(--blue-t);text-align:right}.cr .rd{color:var(--red-t)}
+  .cb{display:flex;height:10px;border-radius:3px;overflow:hidden;background:var(--red)}
+  .cb i{display:block;height:100%;background:var(--blue);box-shadow:1px 0 0 var(--sunk)}
+  .mfoot{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.4rem 1rem;font-size:.75rem;color:var(--muted)}
+  .mfoot a{color:var(--gold);font-weight:700;text-decoration:none}
+  .mfoot a:hover{text-decoration:underline}
+  .mfoot code{font-family:var(--mono);font-size:.6875rem;color:var(--muted)}
+  /* Arena board */
+  .ab{min-width:680px;display:grid;gap:4px}
+  .duo{display:grid;grid-template-columns:3.2rem minmax(0,1fr);background:var(--card);border-radius:4px}
+  .duo.p1{--dc:var(--gold);--dct:var(--gold)}.duo.top{--dc:var(--blue);--dct:var(--blue-t)}.duo.bot{--dc:var(--red);--dct:var(--red-t)}
+  /* The placement cell carries the colour edge and stays put while the row scrolls sideways. */
+  .duo .dp{display:grid;place-items:center;font-weight:800;font-size:.875rem;color:var(--dct,var(--muted));position:sticky;left:0;z-index:1;
+    background:inherit;border-radius:4px 0 0 4px;box-shadow:inset 3px 0 0 var(--dc,var(--faint))}
+  .duo.me{background:var(--raised-2)}
+  .duo.me .dp{box-shadow:inset 3px 0 0 var(--mark)}
+  .duo.hd{background:none}
+  .duo.hd .dp{background:var(--sbbg);box-shadow:none}
+  .duo.hd .dp,.duo.hd .ap{font-size:.625rem;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--dim)}
+  .ap{display:grid;grid-template-columns:32px minmax(0,1fr) 5rem 6rem 5.9rem 9.6rem;align-items:center;gap:.6rem;padding:.3rem .5rem .3rem 0;font-size:.75rem}
+  .dps .ap+.ap{border-top:1px solid var(--line)}
+  .portrait.xs .pic{width:28px;height:28px}
+  .portrait.xs .lvl{min-width:15px;height:15px;line-height:13px;font-size:.5625rem;right:-3px;bottom:-3px;padding:0 2px}
+  .augs.row{display:flex;flex-wrap:wrap;gap:2px}
+  .augs.row .aug{width:20px;height:20px}
+
+  /* ---------- champions tab ---------- */
+  .ct{width:100%;min-width:640px;border-collapse:collapse;font-size:.8125rem}
+  .ct th{font-size:.6875rem;font-weight:600;color:var(--muted);text-align:center;padding:.55rem .6rem;border-bottom:1px solid var(--line);
+    white-space:nowrap;background:var(--raised)}
+  .ct th button{border:0;background:none;padding:0;font:inherit;color:inherit;display:inline-flex;align-items:center;gap:.25rem}
+  /* Pure numbers line up on their digits; the sort caret sits on the outer (left) side there. */
+  .ct .num{text-align:right}
+  .ct th.num button{flex-direction:row-reverse}
+  .ct th button:hover,.ct th[aria-sort=ascending] button,.ct th[aria-sort=descending] button{color:var(--text)}
+  .ct th button::after{content:"";width:0;height:0;border:4px solid transparent;opacity:0}
+  .ct th[aria-sort=descending] button::after{border-top-color:var(--mark);border-bottom:0;opacity:1}
+  .ct th[aria-sort=ascending] button::after{border-bottom-color:var(--mark);border-top:0;opacity:1}
+  .ct td{padding:.35rem .6rem;border-bottom:1px solid var(--line);text-align:center;white-space:nowrap}
+  .ct .rank,.ct .cc{text-align:left}
+  /* The champion column stays visible while the table scrolls sideways. */
+  .ct .cc{position:sticky;left:0;z-index:1;background:var(--card)}
+  .ct th.cc{background:var(--raised)}
+  .ct tbody tr{cursor:pointer}
+  .ct tbody tr:hover td{background:var(--raised)}
+  .ct tbody tr:last-child td{border-bottom:0}
+  .ct .rank{color:var(--dim);width:2rem}
+  @media(max-width:759px){.ct .rank{display:none}}
+  .ct .chn{display:flex;align-items:center;gap:.55rem}
+  .ct .chn .pic{width:28px;height:28px;border-radius:50%}
+  .ct .chn button{border:0;background:none;padding:0;font-weight:600;color:var(--text);text-align:left}
+  .ct small{display:block;color:var(--muted);font-size:.6875rem}
+  .wl{display:flex;align-items:center;justify-content:center;gap:.55rem}
+  .wlbar{display:flex;width:120px;height:18px;border-radius:3px;overflow:hidden;font-size:.625rem;font-weight:700;background:var(--raised-2)}
+  .wlbar i{font-style:normal;display:flex;align-items:center;padding:0 5px;color:#fff;min-width:0}
+  .wlbar .w{background:var(--blue-d)}
+  .wlbar .l{background:var(--red-d);justify-content:flex-end}
+  .wl b{font-weight:700;min-width:2.4rem}
+  .dash{color:var(--faint)}
+  .note{margin:.2rem 0 0;font-size:.75rem;color:var(--dim)}
+  #view-champions .note{margin-top:.6rem}
+  #champcard:focus{outline-offset:-2px}
+  .empty-state .sline{color:var(--text);font-size:.8125rem}
+  .empty-state .sline b{font-weight:700;font-size:inherit}
+
+  /* ---------- load more (under the match list) ---------- */
+  .mmore{display:grid;gap:.4rem;justify-items:center}
+  .mmore:empty{display:none}
+  .btn-more{display:flex;align-items:center;justify-content:center;gap:.5rem;width:100%;height:44px;padding:0 1rem;border:0;border-radius:var(--r-md);background:var(--card);color:var(--text);font-weight:600;font-size:.875rem}
+  .btn-more svg{width:16px;height:16px;color:var(--muted);transition:color .15s ease}
+  .btn-more:hover,.btn-more:focus-visible{background:var(--raised)}
+  .btn-more:hover svg,.btn-more:focus-visible svg{color:var(--gold)}
+  .btn-more:focus-visible{outline-offset:-2px}
+  /* Busy: aria-disabled rather than disabled, so a keyboard user keeps focus on the button. */
+  .btn-more[aria-disabled=true]{cursor:progress;color:var(--muted);background:var(--card);border-color:var(--line-2)}
+  .btn-more .spinner{width:14px;height:14px}
+  .mcap{margin:0;font-size:.75rem;color:var(--dim);text-align:center}
+  .mcap b{color:var(--muted);font-weight:600}
+  .mend{display:flex;align-items:center;gap:.8rem;width:100%;margin:0;padding:.55rem 0 0;font-size:.75rem;color:var(--dim);text-align:center}
+  .mend::before,.mend::after{content:"";flex:1;height:1px;background:var(--line-2)}
+  .mend:focus{outline:0}
+  .merr{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.5rem 1rem;width:100%;padding:.6rem .85rem;background:rgba(var(--red-rgb),.12);color:var(--red-t);border-radius:var(--r-sm);font-size:.8125rem}
+  .merr b{color:var(--text)}
+
+  /* ---------- season sync ---------- */
+  #champcard,.card.sc{position:relative}
+  .card>h3 .ttl{min-width:0}
+  .card>h3 .ttl em{font-style:normal;font-weight:500;color:var(--dim);white-space:nowrap}
+  /* Narrow screens: the counts drop under the title as one line instead of squeezing both. */
+  #sumcard h3,#champcard>h3{flex-wrap:wrap;row-gap:.15rem}
+  #sumcard h3 small,#champcard>h3 small{margin-left:auto}
+  .card>h3 small.sl{white-space:nowrap;flex:none}
+  /* A thin gold line along the card's top edge: the share of the season read so far,
+     or a sliding segment while the total is not known yet. */
+  .syncbar{position:absolute;left:0;right:0;top:0;height:2px;background:var(--raised-2);overflow:hidden;pointer-events:none}
+  .syncbar i{display:block;height:100%;width:0;background:var(--fill);transition:width .5s ease}
+  .syncbar.ind i{width:32%;animation:slide 1.4s cubic-bezier(.45,.05,.55,.95) infinite}
+  @keyframes slide{from{transform:translateX(-90%)}to{transform:translateX(302%)}}
+  .snote{margin:0;padding:.45rem .85rem;border-bottom:1px solid var(--line);font-size:.6875rem;color:var(--dim)}
+  .snote.err{color:var(--red-t)}
+  .linkbtn{border:0;background:none;padding:0;font:inherit;font-weight:700;color:var(--gold);text-decoration:underline;text-underline-offset:2px}
+  .linkbtn:hover{color:var(--gold-hi)}
+  .srcbar{display:flex;align-items:center;flex-wrap:wrap;gap:.5rem .9rem;margin:0 0 8px}
+  .seg{display:inline-flex;gap:2px;padding:3px;background:var(--card);border-radius:var(--r-sm);max-width:100%}
+  .seg button{border:0;background:none;border-radius:4px;padding:.35rem .75rem;font-size:.8125rem;font-weight:600;color:var(--muted);white-space:nowrap}
+  .seg button:hover{background:var(--raised);color:var(--text)}
+  .seg button[aria-pressed=true]{background:var(--raised-2);color:var(--text);box-shadow:inset 0 -2px 0 var(--mark)}
+  .seg button:disabled{opacity:.5;cursor:default;background:none;color:var(--muted)}
+  .srcbar .sl{font-size:.75rem;color:var(--dim)}
+  .srcbar .sl.err{color:var(--red-t)}
+  @media(max-width:759px){.seg button{padding:.35rem .6rem;font-size:.75rem}}
+  /* ?api= in the address: the page reads another server (a mock answers every Riot ID with its
+     own player), so it says so in the badge style, next to the name and under the nav. */
+  .apitag{font-size:.6875rem;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--gold);background:rgba(var(--gold-rgb),.1);border-radius:999px;padding:2px 8px;cursor:help}
+  .apitag b{color:var(--gold)!important;font-weight:700;letter-spacing:.02em;text-transform:none}
+  .apinote{display:flex;flex-wrap:wrap;align-items:center;gap:.25rem .6rem;margin:12px 0 0;padding:.55rem .9rem;background:rgba(var(--gold-rgb),.1);border-radius:var(--r-sm);font-size:.8125rem;color:var(--muted)}
+  .apinote b{color:var(--gold);font-weight:700;font-size:.75rem}
+  .apinote code{font-family:var(--mono);font-size:.75rem;color:var(--text)}
+  .apinote a{margin-left:auto;color:var(--gold);font-weight:700}
+  .state .apinote.mis{margin:0}
+
+  .foot{margin-top:3rem}
+  @media(prefers-reduced-motion:reduce){
+    *,*::before,*::after{animation:none!important;transition:none!important}
+    /* Without the slide, a parked segment would read as a third done: the dim track alone says "working". */
+    .syncbar.ind i{width:0}
+  }
+</style>
+</head>
+<body data-mode="landing">
+
+<header class="nav"><div class="wrap">
+  <a class="logo" href="index.html" aria-label="Videns home">VIDENS<i>.</i></a>
+  <nav class="links" aria-label="Primary">
+    <a class="bc" href="index.html">Home</a>
+    <a class="bc cur" href="search.html" aria-current="page">Search</a>
+    <a class="bc" href="macro.html">Review</a>
+  </nav>
+  <div class="tools">
+    <form class="nsearch" id="nav-form" autocomplete="off" role="search">
+      <div class="sel"><label class="sr" for="nav-region">Region</label><select id="nav-region" name="region"></select></div>
+      <label class="sr" for="nav-q">Riot ID (Game name + #TAG)</label>
+      <input id="nav-q" name="q" placeholder="Game name + #TAG" spellcheck="false" maxlength="40">
+      <button type="submit" aria-label="Search">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4.5 4.5"/></svg>
+      </button>
+    </form>
+  </div>
+</div></header>
+
+<main class="wrap">
+  <p class="apinote" id="apinote" hidden></p>
+  <section class="hero" aria-labelledby="hero-title">
+    <p class="eyebrow">Summoner search</p>
+    <h1 id="hero-title">Find a <em>summoner</em></h1>
+    <p class="lede">Rank, recent games, season champion stats, win rate, KDA and builds — read straight from the Riot API.</p>
+    <form class="bigsearch" id="hero-form" autocomplete="off" role="search">
+      <div class="sel"><label class="sr" for="hero-region">Region</label><select id="hero-region" name="region"></select></div>
+      <div class="field">
+        <label for="hero-q">Game name + #TAG</label>
+        <input id="hero-q" name="q" placeholder="Hide on bush#KR1" spellcheck="false" required maxlength="40">
+      </div>
+      <button class="go" type="submit">Search</button>
+    </form>
+    <div class="recent" id="recent"></div>
+    <p class="fine">Every queue in one place: <b>Ranked Solo/Duo</b>, <b>Flex</b>, <b>ARAM</b> and <b>Arena</b>, each with a full scoreboard.</p>
+  </section>
+
+  <div class="state" id="state"></div>
+
+  <div class="loading" id="loading">
+    <div class="progress">
+      <span class="spinner" aria-hidden="true"></span>
+      <span><span role="status">Fetching <b id="progress-id"></b> from the Riot API…</span> <b id="elapsed" aria-hidden="true">0s</b>
+        <small>Up to 20 matches, 1.3 s apart to respect Riot's rate limit. Games already archived come back instantly.</small>
+      </span>
+    </div>
+    <div aria-hidden="true">
+      <div class="sk-ph"><i class="sk sk-av"></i><div class="sk-lines"><i class="sk sk-l1"></i><i class="sk sk-l2"></i><i class="sk sk-l3"></i></div></div>
+      <i class="sk sk-tabs"></i>
+      <i class="sk sk-fbar"></i>
+      <div class="cols">
+        <div class="ranks"><i class="sk sk-rank"></i><i class="sk sk-rank"></i></div>
+        <div class="colmain"><i class="sk sk-sum"></i><i class="sk sk-row"></i><i class="sk sk-row"></i><i class="sk sk-row"></i><i class="sk sk-row"></i><i class="sk sk-row"></i></div>
+        <div class="side"><i class="sk sk-side"></i></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="profile" id="profile">
+    <header class="ph" id="ph"></header>
+    <div class="vtabs" role="tablist" aria-label="Profile sections">
+      <button type="button" role="tab" id="tab-summary" aria-controls="view-summary" aria-selected="true" data-view="summary">Summary</button>
+      <button type="button" role="tab" id="tab-champions" aria-controls="view-champions" aria-selected="false" tabindex="-1" data-view="champions">Champions</button>
+    </div>
+    <div class="fbar">
+      <div class="qtabs" id="qtabs" role="group" aria-label="Queue"></div>
+      <label class="csearch">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4.5 4.5"/></svg>
+        <span class="sr">Filter by champion</span>
+        <input id="champ-q" type="search" placeholder="Search a champion" spellcheck="false" autocomplete="off">
+      </label>
+    </div>
+    <!-- Season sync milestones for screen readers: written on transitions only, never per poll. -->
+    <p class="sr" id="season-status" role="status"></p>
+    <section id="view-summary" role="tabpanel" aria-labelledby="tab-summary">
+      <div class="cols">
+        <div class="ranks" id="ranks"></div>
+        <div class="side">
+          <div class="card" id="champcard" tabindex="-1"></div>
+          <div class="card" id="withcard" hidden></div>
+        </div>
+        <div class="colmain">
+          <div id="sumcard"></div>
+          <div class="mlist" id="mlist"></div>
+          <div class="mmore" id="mmore"></div>
+          <p class="sr" id="more-status" role="status"></p>
+          <p class="note" id="note"></p>
+        </div>
+      </div>
+    </section>
+    <section id="view-champions" role="tabpanel" aria-labelledby="tab-champions" hidden>
+      <div id="ctable" style="margin-top:8px"></div>
+    </section>
+  </div>
+</main>
+
+<footer class="foot"><div class="wrap">
+  <a class="logo" href="index.html" aria-label="Videns home">VIDENS<i>.</i></a>
+  <nav aria-label="Footer"><a href="index.html">Home</a><a href="search.html" aria-current="page">Search</a><a href="macro.html">Review</a></nav>
+  <p>Videns is an independent project, not endorsed by or affiliated with Riot Games. League of Legends is a trademark of Riot Games, Inc.</p>
+  <p>Match data comes from the official Riot API; icons from Data Dragon and CommunityDragon. API: <code id="api-label"></code></p>
+</div></footer>
+
+<script>
+/* ---------- config ---------- */
+// Served by the build_tracker app (port 8000) the API is same-origin; anywhere
+// else (videns.gg, a file://, a static dev server) it defaults to the local
+// advisor. ?api=https://host points the page at another host for as long as it
+// stays in the address: the page carries it along in the URLs it pushes and in
+// its profile links, but never stores it. A stored override once kept a mock
+// server answering every later lookup (any Riot ID came back as the mock's
+// player); the old key is cleared on load so a browser stuck that way recovers.
+const params = new URLSearchParams(location.search);
+try { localStorage.removeItem("videns.api"); } catch {}
+const API_OVERRIDE = params.get("api");
+const API = (API_OVERRIDE ?? (location.port === "8000" ? "" : "http://127.0.0.1:8000")).replace(/\/$/, "");
+document.getElementById("api-label").textContent = API || location.origin;
+const apiQs = () => API_OVERRIDE !== null ? `&api=${encodeURIComponent(API_OVERRIDE)}` : "";
+const apiHost = () => { try { return new URL(API || location.origin).host; } catch { return API; } };
+if (API_OVERRIDE !== null) {
+  // The nav's Search link keeps the override too, so it never lands on the default API unannounced.
+  document.querySelector(".nav a.bc.cur").href = `search.html?api=${encodeURIComponent(API_OVERRIDE)}`;
+  // A notice nobody can miss: a mock answers every Riot ID with its own player.
+  const live = new URL(location.href);
+  live.searchParams.delete("api");
+  const note = document.getElementById("apinote");
+  note.innerHTML = `<b>Other API</b><span>Results come from <code></code> (set with <code>?api=</code> in the address), not necessarily live Riot data.</span><a href="">Use the default API</a>`;
+  note.querySelector("code").textContent = apiHost();
+  note.querySelector("a").href = `${live.pathname}${live.search}`;
+  note.hidden = false;
+}
+// The notice's link follows the profile in the address (searches push new URLs).
+function syncApiNote() {
+  const a = document.querySelector("#apinote a");
+  if (!a) return;
+  const live = new URL(location.href);
+  live.searchParams.delete("api");
+  a.href = `${live.pathname}${live.search}`;
+}
+
+const COUNT = 20;
+// Load more pages 20 games at a time; the API's id list pages from 0 and stops at 980.
+const PAGE = 20, MAX_START = 980;
+// A page costs the server ~1.3 s per game it has not archived yet (~30 s on a dev key, more while
+// the season sync shares the key). Past this the page gives up and offers Retry; what the server
+// fetched meanwhile stays archived, so the retry is quicker.
+const MORE_TIMEOUT_MS = 90000;
+const SEASON_POLL_MS = 2500, SEASON_RETRY_MS = 60000;
+// Champions tab during a sync: poll-driven table rebuilds at most this often.
+const CT_MIN_MS = 8000;
+const CDRAGON = "https://raw.communitydragon.org/latest/plugins";
+const EMBLEM = (tier) => `${CDRAGON}/rcp-fe-lol-static-assets/global/default/images/ranked-emblem/emblem-${encodeURIComponent(tier.toLowerCase())}.png`;
+const POSITION = (key) => `${CDRAGON}/rcp-fe-lol-clash/global/default/assets/images/position-selector/positions/icon-position-${key}.png`;
+// The API labels roles in Spanish; the site reads in English.
+const ROLES = [
+  ["Top", "top", "Top"], ["Jungla", "jungle", "Jungle"], ["Medio", "middle", "Mid"],
+  ["ADC", "bottom", "Bot"], ["Support", "utility", "Support"],
+];
+const ROLE_BY_API = Object.fromEntries(ROLES.map(([api, key, label]) => [api, { key, label }]));
+const REGIONS = [
+  ["euw", "EUW"], ["eune", "EUNE"], ["na", "NA"], ["kr", "KR"], ["br", "BR"],
+  ["lan", "LAN"], ["las", "LAS"], ["jp", "JP"], ["tr", "TR"], ["ru", "RU"],
+  ["me", "ME"], ["oce", "OCE"], ["sg", "SG"], ["ph", "PH"], ["th", "TH"],
+  ["tw", "TW"], ["vn", "VN"],
+];
+const EXAMPLES = [["Hide on bush#KR1", "kr"], ["Agurin#EUW", "euw"], ["Caps#10T", "euw"]];
+const RECENTS_KEY = "videns.recents";
+const MULTIKILL = { 2: "Double Kill", 3: "Triple Kill", 4: "Quadra Kill", 5: "Penta Kill" };
+// A few queue names come back in Spanish from the API's fallback table.
+const QUEUE_NAMES = { "Grieta": "Summoner's Rift", "Co-op vs IA": "Co-op vs AI", "Otra cola": "Other" };
+// short: the queue in the narrow season card header.
+const QUEUES = [
+  { key: "all", label: "All", short: "" },
+  { key: "solo", label: "Ranked Solo/Duo", short: "Solo/Duo" },
+  { key: "flex", label: "Ranked Flex", short: "Flex" },
+  { key: "aram", label: "ARAM", short: "ARAM" },
+  { key: "arena", label: "Arena", short: "Arena" },
+  { key: "normal", label: "Normal", short: "Normal", optional: true },
+  { key: "other", label: "Other", short: "Other", optional: true },
+];
+const ARAM_Q = new Set([450, 100, 720, 2400]), ARENA_Q = new Set([1700, 1710, 1750]), NORMAL_Q = new Set([400, 430, 490]);
+function kindOf(m) {
+  if (m.mode === "CHERRY" || ARENA_Q.has(m.queue_id) || m.arena) return "arena";
+  if (m.queue_id === 420) return "solo";
+  if (m.queue_id === 440) return "flex";
+  if (ARAM_Q.has(m.queue_id) || m.mode === "ARAM") return "aram";
+  if (NORMAL_Q.has(m.queue_id)) return "normal";
+  return "other";
+}
+
+const SVG = (body, box = 16) => `<svg viewBox="0 0 ${box} ${box}" fill="currentColor" aria-hidden="true">${body}</svg>`;
+const ICON = {
+  chevron: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>`,
+  flame: SVG(`<path d="M8 1c.6 2.6 4 4.2 4 8a4 4 0 0 1-8 0c0-1.7.9-2.7 1.7-3.4.1 1.3.7 2 1.4 2.3C6.8 5.7 7.5 3.4 8 1z"/>`),
+  empty: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><rect x="3.5" y="5" width="17" height="14" rx="2.5"/><path d="M7.5 10h9M7.5 14h5"/><path d="m3 3 18 18" opacity=".7"/></svg>`,
+};
+// [key, label, glyph, always shown]
+const OBJECTIVES = [
+  ["tower", "Towers", SVG(`<path d="M5 1.5h6l-.8 3.5H11v1.6H9.9l.6 6.4H12V15H4v-2h1.5l.6-6.4H5V5h.8z"/>`), true],
+  ["inhibitor", "Inhibitors", SVG(`<path fill-rule="evenodd" d="M8 1.2 13.4 8 8 14.8 2.6 8zm0 3.4L5.4 8 8 11.4 10.6 8z"/>`)],
+  ["dragon", "Dragons", SVG(`<path d="M1.5 2.5 5.4 5 8 1.5 10.6 5l3.9-2.5-1.6 6.7L8 14.5 3.1 9.2z"/>`), true],
+  ["baron", "Barons", SVG(`<path d="M1.5 14.5C1.5 7 4.4 2 8 2s6.5 5 6.5 12.5h-2.8c0-2.6-1.6-4.3-3.7-4.3s-3.7 1.7-3.7 4.3z"/>`), true],
+  ["riftHerald", "Rift Herald", SVG(`<path fill-rule="evenodd" d="M.8 8S3.5 3.3 8 3.3 15.2 8 15.2 8 12.5 12.7 8 12.7.8 8 .8 8zM8 10.4a2.4 2.4 0 1 0 0-4.8 2.4 2.4 0 0 0 0 4.8z"/>`)],
+  ["horde", "Void grubs", SVG(`<circle cx="4" cy="10.5" r="2.7"/><circle cx="12" cy="10.5" r="2.7"/><circle cx="8" cy="4.8" r="2.7"/>`)],
+  ["atakhan", "Atakhan", SVG(`<path d="M2.5 1 5.7 5.6a4.8 4.8 0 1 0 4.6 0L13.5 1 9.3 4.1a4.9 4.9 0 0 0-2.6 0z"/>`)],
+];
+
+/* ---------- helpers ---------- */
+const $ = (sel, root = document) => root.querySelector(sel);
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const nf = new Intl.NumberFormat("en-US");
+const pct = (n, d = 0) => `${Number(n).toFixed(d)}%`;
+const num = (n) => Number(n) || 0;
+const ratio = (kills, deaths, assists) => (kills + assists) / Math.max(deaths, 1);
+const perfect = (k, d, a) => d === 0 && k + a > 0;
+const kdaStr = (k, d, a) => perfect(k, d, a) ? "Perfect" : `${ratio(k, d, a).toFixed(2)}:1`;
+const tier = (k, d, a) => {
+  if (perfect(k, d, a)) return "t5";
+  const r = ratio(k, d, a);
+  return r >= 5 ? "t5" : r >= 4 ? "t4" : r >= 2.5 ? "t3" : "t1";
+};
+const clock = (s) => `${Math.floor(s / 60)}m ${String(s % 60).padStart(2, "0")}s`;
+const short = (n) => n >= 1000 ? `${(n / 1000).toFixed(1)}k` : `${Math.round(n)}`;
+// Counts read "1,425 games", the same as the progress labels that come before them.
+const plural = (n, word) => `${nf.format(n)} ${word}${n === 1 ? "" : "s"}`;
+// Coerces to a whole number first: placements come from the API and end up in markup.
+const ordinal = (x) => { const n = Math.trunc(num(x)), s = ["th", "st", "nd", "rd"], v = n % 100; return `${n}${s[(v - 20) % 10] || s[v] || s[0]}`; };
+const sum = (rows, key) => rows.reduce((acc, r) => acc + num(r[key]), 0);
+// Case, accent and punctuation-insensitive: "ksante" finds K'Sante, "nunu" finds Nunu & Willump.
+const norm = (s) => String(s || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[^a-z0-9]/g, "");
+const safeUrl = (u) => /^https?:\/\//i.test(String(u || "")) ? String(u) : "";
+// Text of a snippet this page built (escaped markup), for a live region; a <template> never runs anything.
+const plainText = (html) => { const t = document.createElement("template"); t.innerHTML = html; return t.content.textContent.replace(/\s+/g, " ").trim(); };
+const two = (list) => [...(list || []), null, null].slice(0, 2);
+const itemUrl = (id) => id ? `https://ddragon.leagueoflegends.com/cdn/${encodeURIComponent(current.ddragon_version || "")}/img/item/${Number(id)}.png` : null;
+const queueName = (m) => QUEUE_NAMES[m.queue] || m.queue || "Game";
+const placeClass = (n) => n === 1 ? "p1" : n >= 2 && n <= 4 ? "top" : "bot";
+// Standout (gold) win rate at 60% or more, the same rule in every panel.
+const hotRate = (wr) => wr >= 60 ? "hot" : "";
+function ago(ms) {
+  const s = Math.max(0, (Date.now() - ms) / 1000);
+  if (s < 60) return "just now";
+  if (s < 3600) { const m = Math.floor(s / 60); return `${m} minute${m > 1 ? "s" : ""} ago`; }
+  if (s < 86400) { const h = Math.floor(s / 3600); return `${h} hour${h > 1 ? "s" : ""} ago`; }
+  const d = Math.floor(s / 86400);
+  if (d < 30) return `${d} day${d > 1 ? "s" : ""} ago`;
+  const mo = Math.floor(d / 30);
+  return mo < 12 ? `${mo} month${mo > 1 ? "s" : ""} ago` : `${Math.floor(d / 365)} year${d >= 730 ? "s" : ""} ago`;
+}
+// URLs that already loaded once: re-rendered slots show them at once instead of fading in again.
+const loaded = new Set();
+// Set while rendering above-the-fold art (header, rank emblems, first rows) so it is not lazy-loaded.
+let eager = false;
+// Item names from Data Dragon (en_US), for item alt text and hover titles. Filled by loadItemNames().
+let ITEM_NAMES = {};
+function pic(src, cls = "", { alt = "", title = "", item = 0 } = {}) {
+  const url = safeUrl(src);
+  const ok = url && loaded.has(url);
+  const name = item ? ITEM_NAMES[item] || "" : "";
+  const tip = title || name;
+  return `<span class="pic ${cls}${ok ? " ok" : ""}"${tip ? ` title="${esc(tip)}"` : ""}${item ? ` data-item="${Number(item)}"` : ""}>${url
+    ? `<img${ok ? ` class="ok"` : ""} src="${esc(url)}" alt="${esc(alt || name)}" loading="${eager ? "eager" : "lazy"}" decoding="async">` : ""}</span>`;
+}
+function aug(a) {
+  const r = String(a.rarity || "").toLowerCase();
+  const known = ["silver", "gold", "prismatic"].includes(r);
+  const title = `${a.name || "Augment"}${known ? ` · ${r[0].toUpperCase()}${r.slice(1)}` : ""}`;
+  return `<span class="aug r-${known ? r : "other"}" title="${esc(title)}">${pic(a.icon, "", { alt: a.name })}</span>`;
+}
+const riotIdOf = (b) => b.name && b.tag ? `${b.name}#${b.tag}` : "";
+const profileHref = (rid) => `search.html?q=${encodeURIComponent(rid)}&region=${encodeURIComponent(current.region.key)}${apiQs()}`;
+
+/* ---------- elements ---------- */
+const state = $("#state");
+const heroForm = $("#hero-form"), navForm = $("#nav-form");
+const champInput = $("#champ-q");
+for (const sel of [$("#hero-region"), $("#nav-region")]) {
+  for (const [key, label] of REGIONS) {
+    const opt = document.createElement("option");
+    opt.value = key; opt.textContent = label;
+    sel.append(opt);
+  }
+}
+function syncForms(id, region) {
+  for (const f of [heroForm, navForm]) {
+    if (id !== undefined) f.elements.q.value = id;
+    if (region && REGIONS.some(([k]) => k === region)) f.elements.region.value = region;
+  }
+}
+const setMode = (mode) => { document.body.dataset.mode = mode; };
+
+// One listener for every image on the page: fade in on load, leave a neutral slot on error.
+function onImage(event) {
+  const img = event.target;
+  if (!(img instanceof HTMLImageElement)) return;
+  const ok = event.type === "load";
+  if (ok) loaded.add(img.getAttribute("src"));
+  img.classList.add(ok ? "ok" : "bad");
+  if (img.parentElement?.classList.contains("pic")) img.parentElement.classList.add(ok ? "ok" : "bad");
+}
+document.addEventListener("load", onImage, true);
+document.addEventListener("error", onImage, true);
+
+// Item names: one Data Dragon item.json per version, cached (names only) in localStorage.
+const ITEMS_KEY = "videns.items";
+let itemsFor = "";
+async function loadItemNames(version) {
+  if (!version || itemsFor === version) return;
+  itemsFor = version;
+  let names = null;
+  try {
+    const saved = JSON.parse(localStorage.getItem(ITEMS_KEY) || "null");
+    if (saved && saved.v === version && saved.names) names = saved.names;
+  } catch {}
+  if (!names) {
+    try {
+      const res = await fetch(`https://ddragon.leagueoflegends.com/cdn/${encodeURIComponent(version)}/data/en_US/item.json`);
+      if (!res.ok) throw new Error(String(res.status));
+      const data = await res.json();
+      names = Object.fromEntries(Object.entries(data.data || {}).map(([id, it]) => [id, String(it?.name || "")]));
+      try { localStorage.setItem(ITEMS_KEY, JSON.stringify({ v: version, names })); } catch {}
+    } catch { itemsFor = ""; return; }
+  }
+  if (itemsFor !== version) return;
+  ITEM_NAMES = names;
+  // Name the item slots that are already on screen.
+  for (const el of document.querySelectorAll(".pic[data-item]")) {
+    const name = ITEM_NAMES[el.dataset.item];
+    if (!name) continue;
+    el.title = name;
+    el.querySelector("img")?.setAttribute("alt", name);
+  }
+}
+
+function recents(add) {
+  let list = [];
+  try { list = JSON.parse(localStorage.getItem(RECENTS_KEY) || "[]"); } catch { list = []; }
+  if (!Array.isArray(list)) list = [];
+  if (add) {
+    list = [add, ...list.filter((r) => !(r[0] === add[0] && r[1] === add[1]))].slice(0, 6);
+    try { localStorage.setItem(RECENTS_KEY, JSON.stringify(list)); } catch {}
+  }
+  return list;
+}
+function renderRecent() {
+  const saved = recents();
+  const list = saved.length ? saved : EXAMPLES;
+  const box = $("#recent");
+  box.innerHTML = `<span>${saved.length ? "Recent" : "Try"}</span>`;
+  for (const [id, region] of list) {
+    const chip = document.createElement("button");
+    chip.type = "button"; chip.className = "chip";
+    chip.innerHTML = `${esc(id)}<b>${esc(String(region).toUpperCase())}</b>`;
+    chip.onclick = () => search(id, region);
+    box.append(chip);
+  }
+}
+
+/* ---------- fetch ---------- */
+let inFlight = null;
+let current = null;
+let filt = { queue: "all", champ: "" };
+let view = "summary";
+let sortBy = { key: "games", dir: -1 };
+const openRows = new Set();
+// Load more and the season sync belong to the profile on screen; both are replaced when
+// another player is searched. champSrc is the Champions tab's source: "auto" follows the season.
+let more = null;
+let season = null;
+let champSrc = "auto";
+
+const isObj = (r) => r !== null && typeof r === "object" && !Array.isArray(r);
+// Match rows (with a lobby) and the season's compact rows get the same derived fields,
+// so one filter and one set of counting rules serve both.
+function prep(r) {
+  r._k = kindOf(r);
+  r._n = norm(r.champion);
+  r._icon = r.champion_icon || r.icon || "";
+  // Season rows carry no cs_per_min: CS over game minutes. Arena CS means nothing.
+  const mins = num(r.duration_s) / 60;
+  r._cspm = r._k === "arena" ? null
+    : r.cs_per_min !== undefined && r.cs_per_min !== null ? num(r.cs_per_min)
+    : mins > 0 ? num(r.cs) / mins : null;
+  return r;
+}
+const prepMatch = (m) => { prep(m); m.board = Array.isArray(m.board) ? m.board : []; return m; };
+// Newest first, one row per match id: a page can overlap the one before it when the
+// player finished a game in between. Earlier lists win a tie. _i is the row's index.
+function mergeRows(...lists) {
+  const seen = new Set(), out = [];
+  for (const m of lists.flat()) {
+    if (m.match_id) { if (seen.has(m.match_id)) continue; seen.add(m.match_id); }
+    out.push(m);
+  }
+  out.sort((a, b) => num(b.ended_at_ms) - num(a.ended_at_ms));
+  out.forEach((m, i) => { m._i = i; });
+  return out;
+}
+// The same lookup: the Riot ID as asked for (Riot IDs are case-insensitive) on the same region.
+const lookupId = (p) => String(p._query || p.riot_id || "").toLowerCase();
+const sameProfile = (a, b) => !!a && !!b && lookupId(a) === lookupId(b) && a.region?.key === b.region?.key;
+
+// With a profile loaded, the error shows above it. That profile's Load more and season sync
+// carry on from whatever paused them (a lookup that was loading, a Back to the landing page);
+// resumeExtras() does nothing to a page still loading or a poll already scheduled.
+function showError(html) {
+  state.innerHTML = `<div class="error" role="alert">${html}</div>`;
+  setMode(current ? "results" : "landing");
+  if (current) resumeExtras();
+}
+
+// The backend writes a few of its 400 / 404 messages in Spanish; the page reads in English.
+const API_ERRORS = [
+  [/^Escribe el Riot ID completo/i, () => "Type the full Riot ID, tag included: <b>Name#TAG</b>."],
+  [/^Ese Riot ID no tiene una forma v/i, () => "That Riot ID is not valid: a game name has at most 16 characters and a tag at most 5."],
+  [/^Region desconocida/i, () => "Unknown region."],
+  [/^(.+) existe, pero no ha jugado en (.+?)\.?$/i, (m) => `<b>${esc(m[1])}</b> exists, but has not played on ${esc(m[2])}.`],
+];
+function apiError(status, detail) {
+  if (typeof detail === "string" && detail.trim()) {
+    for (const [re, text] of API_ERRORS) { const hit = detail.match(re); if (hit) return text(hit); }
+    return esc(detail);
+  }
+  // FastAPI validation errors (422) carry an array, not a sentence.
+  return status === 422 || status === 400 ? "That Riot ID is not valid." : `The lookup failed (${status}).`;
+}
+function setBusy(on) {
+  const btn = $("#update");
+  if (btn) { btn.disabled = on; btn.classList.toggle("busy", on); }
+}
+
+async function search(riotId, region, { push = true, refresh = false, refocus = false } = {}) {
+  const id = String(riotId || "").trim().replace(/＃/g, "#");
+  if (!id) return;
+  syncForms(id, region);
+  // A new submit always cancels the lookup still running, even when this one is rejected below
+  // (showError() then brings the profile on screen back, extras included).
+  if (inFlight) { inFlight.abort(); inFlight = null; }
+  setBusy(false);
+  const reject = (html) => showError(html);
+  const hash = id.lastIndexOf("#");
+  const name = id.slice(0, Math.max(hash, 0)).trim(), tag = id.slice(hash + 1).trim();
+  if (hash < 0 || !name || !tag) {
+    reject(`Type the full Riot ID, tag included: <b>Name#TAG</b>.`);
+    return;
+  }
+  if ([...name].length > 16 || [...tag].length > 5) {
+    reject(`That Riot ID is not valid: a game name has at most 16 characters and a tag at most 5.`);
+    return;
+  }
+  const controller = new AbortController();
+  inFlight = controller;
+  state.innerHTML = "";
+  let ticker = null;
+  const before = current?.compiled_at_ms;
+  if (refresh) {
+    setBusy(true);
+  } else {
+    // The profile on screen stops loading pages and polling its season while another one loads.
+    pauseExtras();
+    setMode("loading");
+    window.scrollTo(0, 0);
+    const started = Date.now();
+    $("#progress-id").textContent = id;
+    $("#elapsed").textContent = "0s";
+    ticker = setInterval(() => { $("#elapsed").textContent = `${Math.round((Date.now() - started) / 1000)}s`; }, 250);
+  }
+
+  try {
+    // refresh=1 asks the API to skip its short profile cache (ignored by servers that do not support it).
+    const url = `${API}/api/summoner?riot_id=${encodeURIComponent(`${name}#${tag}`)}&region=${encodeURIComponent(region)}&count=${COUNT}${refresh ? "&refresh=1" : ""}`;
+    let res;
+    try {
+      res = await fetch(url, { signal: controller.signal });
+    } catch (err) {
+      if (err.name === "AbortError") throw err;
+      throw new Error(`Could not reach the Videns API at ${esc(API || location.origin)}.<small>Start it with <code>.venv\\Scripts\\python.exe -m uvicorn app.main:app</code> inside build_tracker, or point this page at another host with <code>?api=https://host</code>.</small>`);
+    }
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(apiError(res.status, body?.detail));
+    if (!body || !Array.isArray(body.matches)) throw new Error("The API answered with something this page cannot read.");
+    // Paging and the season sync ask for the player the way the lookup did.
+    body._query = `${name}#${tag}`;
+    const prev = current;
+    const same = sameProfile(prev, body);
+    const fresh = body.matches.filter(isObj).map(prepMatch);
+    let added = fresh.length;
+    if (refresh && same) {
+      // Update: page 1 again, merged with every page already loaded (the loaded depth stays).
+      const had = new Set(prev.matches.map((m) => m.match_id).filter(Boolean));
+      added = fresh.filter((m) => !m.match_id || !had.has(m.match_id)).length;
+      body.matches = mergeRows(fresh, prev.matches);
+      // Deeper pages were loaded: page 1's has_more says nothing about the end of the list.
+      if (more && more.next <= COUNT) more.hasMore = hasMoreOf(body, fresh.length);
+    } else {
+      body.matches = mergeRows(fresh);
+      if (more) more.ctrl?.abort();
+      more = { next: COUNT, hasMore: hasMoreOf(body, fresh.length), busy: false, error: "", ctrl: null, started: 0 };
+      champSrc = "auto";
+      ctHold.order = null;
+      // The same player searched again keeps the season rows already read.
+      if (!same) dropSeason();
+    }
+    current = body;
+    if (!refresh) {
+      clearTimeout(champTimer);
+      filt = { queue: "all", champ: "" };
+      champInput.value = "";
+      view = "summary";
+      sortBy = { key: "games", dir: -1 };
+      openRows.clear();
+    }
+    state.innerHTML = "";
+    // Riot IDs match without case or spaces, so any other answer means the API is not reading
+    // live Riot data (a mock set with ?api= answers every Riot ID with its own player): say so.
+    const idKey = (s) => String(s || "").normalize("NFKC").toLowerCase().replace(/\s+/g, "");
+    if (body.riot_id && idKey(body.riot_id) !== idKey(body._query)) {
+      state.innerHTML = `<p class="apinote mis" role="status"><b>Different player</b><span>You searched for <code>${esc(body._query)}</code>, but ${API_OVERRIDE !== null ? `the API at <code>${esc(apiHost())}</code>` : "the API"} answered with <code>${esc(body.riot_id)}</code>.${API_OVERRIDE !== null ? " A test server answers every Riot ID with its own player." : ""}</span>${API_OVERRIDE !== null ? `<a href="">Search on the default API</a>` : ""}</p>`;
+      const live = state.querySelector("a");
+      if (live) {
+        const qs = new URLSearchParams({ q: body._query, region });
+        live.href = `${location.pathname}?${qs}`;
+      }
+    }
+    renderProfile();
+    setMode("results");
+    loadItemNames(body.ddragon_version);
+    if (refresh) {
+      const msg = added ? `${plural(added, "new game")} added.`
+        : before && body.compiled_at_ms === before ? "No new games yet. Update works again in about 30 s."
+        : "No new games since the last update.";
+      $("#ph .acts").insertAdjacentHTML("beforeend", `<span class="updated" role="status">${msg}</span>`);
+    }
+    // The season sync starts as soon as the profile is on screen; an Update asks once more,
+    // which lets a finished sync pick up the games played since.
+    if (season) resumeSeason(refresh); else startSeason();
+    recents([body.riot_id, region]);
+    renderRecent();
+    if (push) {
+      const qs = new URLSearchParams({ q: body.riot_id, region });
+      if (API_OVERRIDE !== null) qs.set("api", API_OVERRIDE);
+      history.pushState({ q: body.riot_id, region }, "", `?${qs}`);
+      syncApiNote();
+    }
+    document.title = `${body.riot_id} · Videns`;
+  } catch (err) {
+    if (err.name === "AbortError") return;
+    // The lookup failed; the previous profile (if any) is back on screen and its extras carry on.
+    showError(err.message);
+  } finally {
+    clearInterval(ticker);
+    if (inFlight === controller) inFlight = null;
+    if (inFlight === null) setBusy(false);
+    // The header (and its Update button) was rebuilt or re-enabled: give keyboard focus back.
+    if (refresh && refocus && inFlight === null && document.activeElement === document.body) $("#update")?.focus();
+  }
+}
+
+/* ---------- one filter pipeline feeds every panel ---------- */
+// The same queue + champion filter runs over the loaded games and over the season's rows.
+const pipeline = () => filterRows(current.matches);
+const seasonPipe = () => seasonUsable() ? filterRows(season.rows) : null;
+function filterRows(all) {
+  const q = norm(filt.champ);
+  // An exact champion name wins over a substring, so "Vi" does not also pull in Viktor.
+  const exact = q && all.some((m) => m._n === q);
+  const byChamp = !q ? all : all.filter((m) => exact ? m._n === q : m._n.includes(q));
+  // Tab counts are counted games (remakes left out, like every other count); the tab's title names the remakes.
+  const counts = {}, remakes = {};
+  for (const Q of QUEUES) {
+    const list = Q.key === "all" ? byChamp : byChamp.filter((m) => m._k === Q.key);
+    remakes[Q.key] = list.filter((m) => m.remake).length;
+    counts[Q.key] = list.length - remakes[Q.key];
+  }
+  const present = new Set(all.map((m) => m._k));
+  const rows = filt.queue === "all" ? byChamp : byChamp.filter((m) => m._k === filt.queue);
+  return { rows, counts, remakes, present };
+}
+
+// Remakes never count. Arena counts in games, W/L (top 4 = Riot's win flag) and K/D/A;
+// kill participation and CS only make sense on a map with lanes, so they skip Arena.
+function aggregate(rows) {
+  const counted = rows.filter((r) => !r.remake);
+  const lanes = counted.filter((r) => r._k !== "arena");
+  const arena = counted.filter((r) => r._k === "arena");
+  const games = counted.length, wins = counted.filter((r) => r.win).length;
+  const K = sum(counted, "kills"), D = sum(counted, "deaths"), A = sum(counted, "assists");
+  const placed = arena.filter((r) => r.placement > 0);
+  const dist = Array.from({ length: 8 }, (_, i) => placed.filter((r) => r.placement === i + 1).length);
+  return {
+    games, remakes: rows.length - games, wins, losses: games - wins, winrate: games ? 100 * wins / games : 0,
+    // Rift games (not ARAM, not Arena): the only ones with vision and control wards worth averaging.
+    rift: lanes.filter((r) => r._k !== "aram").length,
+    K, D, A, k: games ? K / games : 0, d: games ? D / games : 0, a: games ? A / games : 0,
+    kp: lanes.length ? lanes.reduce((acc, r) => acc + Math.min(100, num(r.kill_participation)), 0) / lanes.length : null,
+    cspm: lanes.some((r) => r._cspm !== null) ? sum(lanes, "_cspm") / lanes.filter((r) => r._cspm !== null).length : null,
+    lanes: lanes.length, arenaGames: arena.length,
+    arena: arena.length ? {
+      games: arena.length, top4: 100 * arena.filter((r) => r.win).length / arena.length,
+      avgPlace: placed.length ? sum(placed, "placement") / placed.length : null,
+      firsts: dist[0], dist,
+    } : null,
+  };
+}
+// Takes prepared rows of either kind (loaded match rows or season rows).
+function byChampion(rows) {
+  const map = new Map();
+  for (const r of rows) {
+    if (r.remake) continue;
+    let b = map.get(r.champion);
+    if (!b) map.set(r.champion, b = { champion: r.champion, icon: r._icon, games: 0, wins: 0, K: 0, D: 0, A: 0,
+      gold: 0, damage: 0, vision: 0, cw: 0, rg: 0, cs: 0, csg: 0, place: 0, pg: 0 });
+    if (!b.icon) b.icon = r._icon;
+    b.games++; if (r.win) b.wins++;
+    b.K += num(r.kills); b.D += num(r.deaths); b.A += num(r.assists);
+    b.gold += num(r.gold); b.damage += num(r.damage);
+    if (r._k === "arena") { if (num(r.placement) > 0) { b.place += num(r.placement); b.pg++; } }
+    else if (r._cspm !== null) { b.cs += r._cspm; b.csg++; }
+    // Vision and control wards only mean something on Summoner's Rift (the same rule as aggregate().rift).
+    if (r._k !== "arena" && r._k !== "aram") { b.vision += num(r.vision); b.cw += num(r.control_wards); b.rg++; }
+  }
+  return [...map.values()].map((b) => ({
+    ...b, losses: b.games - b.wins, winrate: 100 * b.wins / b.games,
+    kda: ratio(b.K, b.D, b.A), cspm: b.csg ? b.cs / b.csg : null, avgPlace: b.pg ? b.place / b.pg : null,
+    goldAvg: b.gold / b.games, dmgAvg: b.damage / b.games,
+    visAvg: b.rg ? b.vision / b.rg : null, cwAvg: b.rg ? b.cw / b.rg : null,
+  })).sort((a, b) => b.games - a.games || b.winrate - a.winrate || b.kda - a.kda);
+}
+function byRole(rows) {
+  const counts = Object.fromEntries(ROLES.map(([api]) => [api, 0]));
+  let total = 0;
+  for (const r of rows) if (!r.remake && r.role in counts) { counts[r.role]++; total++; }
+  return { total, roles: ROLES.map(([api, key, label]) => ({ key, label, games: counts[api], share: total ? 100 * counts[api] / total : 0 })) };
+}
+// Teammates: same team on the Rift / ARAM, same duo in Arena. Keyed by lowercase name#tag.
+function playedWith(rows) {
+  const map = new Map();
+  for (const m of rows) {
+    if (m.remake) continue;
+    const me = m.board.find((b) => b.is_me);
+    if (!me) continue;
+    for (const b of m.board) {
+      if (b.is_me || !riotIdOf(b)) continue;
+      const mate = m._k === "arena" ? me.subteam > 0 && b.subteam === me.subteam : b.team_id === me.team_id;
+      if (!mate) continue;
+      const key = riotIdOf(b).toLowerCase();
+      let e = map.get(key);
+      if (!e) map.set(key, e = { name: b.name, tag: b.tag, icon: b.icon, champion: b.champion, games: 0, wins: 0 });
+      e.games++; if (m.win) e.wins++;
+    }
+  }
+  return [...map.values()].filter((e) => e.games >= 2)
+    .sort((a, b) => b.games - a.games || b.wins - a.wins).slice(0, 8);
+}
+
+/* ---------- render ---------- */
+function renderProfile() {
+  const p = current;
+  const corpusTip = `${num(p.corpus?.games)} games reconstructed in the Videns corpus`;
+  const corpus = p.corpus && p.corpus.games
+    ? `<span class="corpus" title="${corpusTip}">In corpus<span class="sr">: ${corpusTip}</span></span>` : "";
+  eager = true;
+  $("#ph").innerHTML = `
+    <div class="avatar">${pic(p.icon, "", { alt: "" })}<span class="lvl">${num(p.level)}</span></div>
+    <div class="who">
+      <div class="nameline"><h1>${esc(p.game_name)} <span class="tag">#${esc(p.tag_line)}</span></h1>${corpus}</div>
+      <p class="meta"><b>${esc(p.region?.label || "")}</b><i>·</i><span>Level <b>${num(p.level)}</b></span><i>·</i><span>Patch <b>${esc(p.matches[0]?.patch || "—")}</b></span>${API_OVERRIDE !== null
+        ? `<i>·</i><span class="apitag" title="Read from another API, set with ?api= in the address. Drop it from the address for the default API.">Other API <b>${esc(apiHost())}</b></span>` : ""}</p>
+      <div class="acts">
+        <button class="btn-gold" id="update" type="button"><span class="spin" aria-hidden="true"></span>Update</button>
+        <span class="updated">Last updated <span id="updated-ago">${ago(p.compiled_at_ms)}</span></span>
+      </div>
+    </div>`;
+  const solo = p.ranks.find((r) => r.queue_type === "RANKED_SOLO_5x5");
+  const flex = p.ranks.find((r) => r.queue_type === "RANKED_FLEX_SR");
+  $("#ranks").innerHTML = rankCard("Ranked Solo/Duo", solo) + rankCard("Ranked Flex", flex);
+  eager = false;
+  setView(view);
+}
+
+function rankCard(title, r) {
+  if (!r) return `<div class="card"><h3>${title}<span class="unr">Unranked</span></h3></div>`;
+  const t = String(r.tier || "");
+  const tierName = t ? t[0].toUpperCase() + t.slice(1).toLowerCase() : "Unranked";
+  const apex = ["master", "grandmaster", "challenger"].includes(t.toLowerCase());
+  return `
+    <div class="card">
+      <h3>${title}${r.inactive ? `<small>Inactive</small>` : ""}</h3>
+      <div class="rk">
+        ${pic(t ? EMBLEM(t) : null, "emblem", { alt: tierName })}
+        <div class="rt">
+          <b>${esc(tierName)}${apex || !r.division ? "" : ` ${esc(r.division)}`}</b>
+          <span>${nf.format(num(r.lp))} LP</span>
+          ${r.hot_streak ? `<span class="streak">${ICON.flame}Hot streak</span>` : ""}
+        </div>
+        <div class="rr"><span>${num(r.wins)}W ${num(r.losses)}L</span><span>Win rate ${pct(num(r.winrate))}</span></div>
+      </div>
+    </div>`;
+}
+
+function setView(v) {
+  view = v;
+  // Roving tabindex: only the selected tab is a Tab stop; arrows / Home / End move between them.
+  for (const b of document.querySelectorAll(".vtabs [role=tab]")) {
+    const on = b.dataset.view === v;
+    b.setAttribute("aria-selected", String(on));
+    b.tabIndex = on ? 0 : -1;
+  }
+  $("#view-summary").hidden = v !== "summary";
+  $("#view-champions").hidden = v !== "champions";
+  update();
+}
+
+// append: a Load more page arrived; rows already in the list stay as they are when possible.
+function update({ append = false } = {}) {
+  if (!current) return;
+  const pipe = pipeline(), spipe = seasonPipe();
+  renderQueueTabs(pipe, spipe);
+  if (view === "summary") renderSummary(pipe, spipe, { append });
+  else renderChampions(pipe, spipe);
+  fadeAll();
+}
+
+// The queue tabs are updated in place (not rebuilt), so a focused tab keeps keyboard focus.
+// Their counts follow what the view lists: the loaded games, or the season when the
+// Champions tab reads it. A queue shows up when either source has games in it.
+function renderQueueTabs(pipe, spipe) {
+  const inSeason = view === "champions" && spipe && champSource() === "season";
+  const { counts, remakes } = inSeason ? spipe : pipe;
+  const present = new Set([...pipe.present, ...(spipe ? spipe.present : [])]);
+  const box = $("#qtabs");
+  const list = QUEUES.filter((Q) => !Q.optional || present.has(Q.key) || filt.queue === Q.key);
+  const keys = list.map((Q) => Q.key).join();
+  if (box.dataset.keys !== keys) {
+    const had = document.activeElement?.closest?.("#qtabs [data-q]")?.dataset.q;
+    box.innerHTML = list.map((Q) => `<button type="button" data-q="${Q.key}" aria-pressed="false">${Q.label}<span class="n"></span></button>`).join("");
+    box.dataset.keys = keys;
+    if (had) box.querySelector(`[data-q="${had}"]`)?.focus();
+  }
+  for (const b of box.querySelectorAll("[data-q]")) {
+    const k = b.dataset.q;
+    b.setAttribute("aria-pressed", String(k === filt.queue));
+    b.querySelector(".n").textContent = nf.format(counts[k]);
+    if (inSeason) b.title = `${plural(counts[k], "game")} in Season ${seasonYear()}${remakes[k] ? `, remakes not counted` : ""}`;
+    else if (remakes[k]) b.title = `${plural(counts[k], "game")}, plus ${plural(remakes[k], "remake")} (listed, not counted)`;
+    else b.removeAttribute("title");
+  }
+}
+
+// Wide tables: toggle the right-edge fade while there is more to scroll to.
+const SCROLLERS = ".sbx,.ctwrap";
+function fade(el) { el.classList.toggle("fr", el.scrollWidth - el.clientWidth - el.scrollLeft > 2); }
+function fadeAll(root = document) { for (const el of root.querySelectorAll(SCROLLERS)) fade(el); }
+
+const queueLabel = () => QUEUES.find((Q) => Q.key === filt.queue).label;
+// The champion filter as written on screen: the champion's own spelling when it names one exactly.
+function champName() {
+  const q = norm(filt.champ);
+  if (!q) return "";
+  const hit = current.matches.find((m) => m._n === q) || season?.rows.find((r) => r._n === q);
+  return hit ? String(hit.champion) : filt.champ.trim();
+}
+// scope "loaded": the games on the page; "season": the season rows (Champions tab).
+function emptyState(scope = "loaded") {
+  const champ = filt.champ.trim();
+  const inSeason = scope === "season";
+  const total = current.matches.length;
+  const what = [champName(), filt.queue === "all" ? "" : queueLabel()].filter(Boolean).join(" ");
+  const none = `No ${esc(what)}${what ? " " : ""}games`;
+  const title = inSeason ? `${none} in Season ${seasonYear()}${seasonSyncing() ? " so far" : ""}.`
+    : total ? `${none} in the last ${nf.format(total)}.` : "No recent games found for this player.";
+  // Under the match list, older games are one click away.
+  const older = !inSeason && view === "summary" && more?.hasMore;
+  // Reached from a Season row on the Champions tab, most champions are not among the loaded games:
+  // say what the season holds for them, and offer the way back.
+  let seasonLine = "";
+  const sp = !inSeason && view === "summary" && champ ? seasonPipe() : null;
+  const st = sp ? aggregate(sp.rows) : null;
+  if (st?.games) {
+    seasonLine = `<span class="sline">${esc(champName())} in Season ${seasonYear()}${seasonSyncing() ? " so far" : ""}: <b>${plural(st.games, "game")}</b> · <b class="${hotRate(st.winrate)}">${pct(st.winrate)}</b> win rate · <b class="${tier(st.K, st.D, st.A)}">${kdaStr(st.K, st.D, st.A)}</b> KDA</span>`;
+  }
+  const hint = !inSeason && !total ? "The match history came back empty. Check back after a few games."
+    : seasonLine ? `Those games are older than the ${nf.format(total)} loaded here.${older ? " Older games can be loaded below." : ""}`
+    : champ && filt.queue !== "all" ? `Try another champion name, or pick another queue above.${older ? " Older games can be loaded below." : ""}`
+    : champ ? `Try another champion name.${older ? " Older games can be loaded below." : ""}`
+    : older ? "Pick another queue above, or load older games below."
+    : "Pick another queue above, or check back after a few more games.";
+  return `<div class="card empty-state">${ICON.empty}
+    <b>${title}</b>
+    ${seasonLine}
+    <span>${hint}</span>
+    <div class="row">
+      ${seasonLine ? `<button class="ghost" type="button" data-act="back-champs">Back to Champions</button>` : ""}
+      ${champ ? `<button class="ghost" type="button" data-act="clear-champ">Clear champion filter</button>` : ""}
+      ${filt.queue !== "all" ? `<button class="ghost" type="button" data-q="all">Show all queues</button>` : ""}
+    </div>
+  </div>`;
+}
+
+// Recently played with, the summary card and the match list need lobby data, so they
+// read the loaded games; the champion card reads the season once it has rows.
+// The rows #mlist shows, each with its index when drawn. A Load more that only adds rows after
+// them appends those instead of redrawing the list: focus, open scoreboards and layout stay put.
+let shown = [];
+function renderSummary(pipe, spipe, { append = false } = {}) {
+  const { rows } = pipe;
+  renderChampCard(pipe, spipe);
+  const mates = playedWith(rows);
+  const withEl = $("#withcard");
+  withEl.hidden = !mates.length;
+  withEl.innerHTML = mates.length ? withCard(mates) : "";
+
+  const list = $("#mlist");
+  if (!rows.length) {
+    $("#sumcard").innerHTML = emptyState();
+    list.innerHTML = "";
+  } else {
+    $("#sumcard").innerHTML = summaryCard(rows);
+    const k = shown.length;
+    const extend = append && k <= rows.length && list.children.length === k
+      && shown.every(([m, i], j) => rows[j] === m && m._i === i);
+    if (extend) {
+      if (rows.length > k) list.insertAdjacentHTML("beforeend", rows.slice(k).map(matchRow).join(""));
+    } else {
+      const back = listFocus(list);
+      // The first rows are above the fold: their art loads eagerly.
+      list.innerHTML = rows.map((m, i) => { eager = i < 3; return matchRow(m); }).join("");
+      eager = false;
+      back?.();
+    }
+  }
+  shown = rows.map((m) => [m, m._i]);
+  renderMore(pipe);
+  renderNote(pipe);
+}
+const rowKey = (m) => m.match_id || `i${m._i}`;
+// Focus inside the match list survives a redraw: the same control in the same game, found by match id.
+function listFocus(list) {
+  const el = document.activeElement;
+  if (!el || el === list || !list.contains(el)) return null;
+  const art = el.closest("article.m");
+  if (!art) return null;
+  const key = art.dataset.mid;
+  const cls = el.classList[0] ? `.${CSS.escape(el.classList[0])}` : "";
+  const sel = el === art ? null
+    : el.dataset.riot !== undefined ? `${el.tagName.toLowerCase()}${cls}[data-riot="${CSS.escape(el.dataset.riot)}"]`
+    : el.closest(".mfoot") ? ".mfoot a" : ".mexp";
+  return () => {
+    const next = [...list.querySelectorAll("article.m")].find((a) => a.dataset.mid === key);
+    if (!next) return;
+    const target = (sel && next.querySelector(sel)) || next.querySelector(".mexp");
+    if (!sel) next.tabIndex = -1;
+    (sel ? target : next)?.focus({ preventScroll: true });
+  };
+}
+
+function renderNote({ rows }) {
+  if (!rows.length) { $("#note").textContent = ""; return; }
+  const t = aggregate(rows);
+  $("#note").textContent = [
+    "Remakes are shown but not counted.",
+    // Only worth saying when the counted games actually mix Arena with lane games.
+    t.arenaGames && t.lanes ? "P/Kill and CS averages exclude Arena." : "",
+    t.arenaGames ? "In Arena a top-4 finish counts as a win." : "",
+    `Averages cover the ${plural(current.matches.length, "game")} loaded, never a career${seasonUsable() ? "; season totals count every game of the season the server has read" : ""}.`,
+  ].filter(Boolean).join(" ");
+}
+
+// A season poll rebuilds this card; focus inside it lands on the same control again.
+function renderChampCard(pipe, spipe) {
+  const el = $("#champcard");
+  const keep = focusKey(el);
+  el.innerHTML = champCard(pipe, spipe);
+  if (keep) (el.querySelector(keep) || el).focus({ preventScroll: true });
+}
+
+// The season's numbers once any season rows are in, the loaded games until then (or when the
+// sync failed). A thin gold line on the card's top edge shows how far the sync has read.
+function champCard(pipe, spipe) {
+  const inSeason = !!spipe;
+  const rows = inSeason ? spipe.rows : pipe.rows;
+  const counted = rows.filter((r) => !r.remake).length;
+  const champs = byChampion(rows).slice(0, 7);
+  const none = rows.length ? "Only remakes here. They are not counted." : "No games match this filter.";
+  const n = current.matches.length, year = seasonYear(), info = syncInfo(), s = season;
+  const queue = filt.queue === "all" ? "" : ` · ${queueLabel()}`;
+  const qshort = filt.queue === "all" ? "" : ` · ${QUEUES.find((Q) => Q.key === filt.queue).short}`;
+  // "S2026" keeps the title and a four-digit progress label on one line in the 312px column.
+  const title = inSeason
+    ? `<span class="ttl" title="Season ${year} champion stats"><span aria-hidden="true">S${year}</span><span class="sr">Season ${year}</span> champions</span>`
+    : `<span class="ttl">Champion stats</span>`;
+  const label = info
+    ? `<small class="sl js-sync" title="${esc(info.title)}${filt.queue === "all" ? "" : ` Showing ${queueLabel()} games.`}">${esc(info.text)}</small>`
+    : `<small class="sl" title="${inSeason ? `Season ${year}` : `The last ${plural(n, "game")} loaded`}${queue}">${inSeason ? plural(counted, "game") : `Last ${plural(n, "game")}`}${qshort}</small>`;
+  let strip = "";
+  if (s?.status === "error") {
+    strip = `<p class="snote err" title="${esc(s.error)}">Season stats are unavailable right now. <button class="linkbtn" type="button" data-act="season-retry">Retry</button></p>`;
+  } else if (!inSeason && info) {
+    strip = `<p class="snote">Last ${plural(n, "game")} until the Season ${year} count comes in.</p>`;
+  } else if (!inSeason && s?.status === "done") {
+    strip = `<p class="snote">No Season ${year} games found: these are the last ${plural(n, "game")}.</p>`;
+  } else if (inSeason && s.capped) {
+    strip = `<p class="snote">Only the latest ${nf.format(s.maxGames || s.total || 0)} games of the season were read.</p>`;
+  }
+  return `${syncBar(info)}
+    <h3>${title}${label}</h3>${strip}
+    ${champs.length ? champs.map((c) => `
+      <div class="crow">
+        ${pic(c.icon, "ch", { alt: "", title: c.champion })}
+        <div class="cn"><b>${esc(c.champion)}</b><small>${c.cspm !== null ? `CS ${c.cspm.toFixed(1)}/m` : c.avgPlace !== null ? `Avg place ${c.avgPlace.toFixed(1)}` : ""}</small></div>
+        <div class="ck"><b class="${tier(c.K, c.D, c.A)}">${kdaStr(c.K, c.D, c.A)} KDA</b><small>${(c.K / c.games).toFixed(1)} / ${(c.D / c.games).toFixed(1)} / ${(c.A / c.games).toFixed(1)}</small></div>
+        <div class="cw"><b class="${hotRate(c.winrate)}">${pct(c.winrate)}</b><small>${plural(c.games, "game")}</small></div>
+      </div>`).join("") : `<p class="empty">${none}</p>`}
+    <button class="more" type="button" data-view="champions">All champions</button>`;
+}
+
+function withCard(mates) {
+  return `
+    <h3>Recently played with <small>2+ games in the last ${nf.format(current.matches.length)}</small></h3>
+    <div class="pw hd"><span></span><span>Summoner</span><span>Games</span><span>W–L</span><span>WR</span></div>
+    ${mates.map((e) => {
+      const rid = riotIdOf(e), wr = 100 * e.wins / e.games;
+      return `<div class="pw">
+        ${pic(e.icon, "ch", { alt: "", title: e.champion })}
+        <a class="pn" href="${esc(profileHref(rid))}" data-riot="${esc(rid)}" title="${esc(rid)}">${esc(e.name)}<span> #${esc(e.tag)}</span></a>
+        <span>${e.games}</span><span>${e.wins}W ${e.games - e.wins}L</span><b class="${hotRate(wr)}">${pct(wr)}</b>
+      </div>`;
+    }).join("")}`;
+}
+
+function donut(value, label) {
+  const r = 32, c = 2 * Math.PI * r, arc = c * Math.max(0, Math.min(100, value)) / 100;
+  return `<svg class="donut" viewBox="0 0 84 84" role="img" aria-label="${label} ${pct(value)}">
+    <circle class="trk" cx="42" cy="42" r="${r}"></circle>
+    <circle class="arc" cx="42" cy="42" r="${r}" transform="rotate(-90 42 42)" stroke-dasharray="${arc.toFixed(2)} ${(c - arc).toFixed(2)}"></circle>
+    <text x="42" y="47" text-anchor="middle">${pct(value)}</text></svg>`;
+}
+
+function summaryCard(rows) {
+  const t = aggregate(rows);
+  const q = filt.queue;
+  const arenaTab = q === "arena" && t.arena;
+  // Counted games in the header, remakes named beside them, so it matches the W/L block and the tab count.
+  const header = `<h3><span class="ttl">Recent games <em>· ${nf.format(current.matches.length)} loaded</em></span><small>${plural(t.games, "game")}${t.remakes ? ` · ${plural(t.remakes, "remake")}` : ""}${q === "all" ? "" : ` · ${queueLabel()}`}</small></h3>`;
+  if (!t.games) return `<div class="card">${header}<p class="empty">Only remakes here. They are not counted, so there is nothing to average.</p></div>`;
+  const kdaLine = `<div class="kline"><b>${t.k.toFixed(1)}</b> / <b class="d">${t.d.toFixed(1)}</b> / <b>${t.a.toFixed(1)}</b></div>`;
+  const kdaRatio = perfect(t.K, t.D, t.A) ? "Perfect" : `${ratio(t.K, t.D, t.A).toFixed(2)}:1`;
+
+  let block1;
+  if (arenaTab) {
+    const a = t.arena;
+    block1 = `<div><p class="hd">${nf.format(t.games)}G ${nf.format(t.wins)}W ${nf.format(t.losses)}L <small>· top 4 counts as a win</small></p>
+      <div class="d1">${donut(a.top4, "Top 4 rate")}<div>
+        <div class="kbig ${a.avgPlace !== null && a.avgPlace <= 2.5 ? "t5" : ""}">${a.avgPlace !== null ? a.avgPlace.toFixed(1) : "—"}<small>avg place</small></div>
+        <div class="kline"><b class="${a.firsts ? "hot" : ""}">${a.firsts}</b> ${a.firsts === 1 ? "first" : "firsts"} · Top 4 <b>${pct(a.top4)}</b></div>
+        <div class="kline"><b>${t.k.toFixed(1)}</b> / <b class="d">${t.d.toFixed(1)}</b> / <b>${t.a.toFixed(1)}</b> · <b class="${tier(t.K, t.D, t.A)}">${kdaRatio} KDA</b></div>
+      </div></div></div>`;
+  } else {
+    const kp = t.kp === null ? `<div class="kp">P/Kill <b>—</b>${t.arenaGames ? ` <small>(Arena only)</small>` : ""}</div>`
+      : `<div class="kp">P/Kill <b>${pct(t.kp)}</b>${t.arenaGames ? ` <small>excl. Arena</small>` : ""}</div>`;
+    block1 = `<div><p class="hd">${nf.format(t.games)}G ${nf.format(t.wins)}W ${nf.format(t.losses)}L</p>
+      <div class="d1">${donut(t.winrate, "Win rate")}<div>${kdaLine}<div class="kbig ${tier(t.K, t.D, t.A)}">${kdaRatio}</div>${kp}</div></div></div>`;
+  }
+
+  const champs = byChampion(rows).slice(0, 3);
+  const block2 = `<div><p class="hd">Champions played</p>${champs.length ? champs.map((c) => `
+    <div class="cp">${pic(c.icon, "ch", { alt: "", title: c.champion })}
+      <b class="${hotRate(c.winrate)}">${pct(c.winrate)}</b><span>${arenaTab && c.avgPlace !== null ? `Avg place ${c.avgPlace.toFixed(1)}` : `(${c.wins}W ${c.losses}L)`}</span>
+      <b class="${tier(c.K, c.D, c.A)}"${arenaTab ? ` title="KDA"` : ""}>${kdaStr(c.K, c.D, c.A)}${arenaTab ? "" : " KDA"}</b></div>`).join("") : `<p class="kp">Only remakes here.</p>`}</div>`;
+
+  let block3 = "";
+  if (arenaTab) {
+    const max = Math.max(1, ...t.arena.dist);
+    block3 = `<div><p class="hd">Placements</p><div class="bars pl">${t.arena.dist.map((n, i) => `
+      <div class="bar ${placeClass(i + 1)}" title="${ordinal(i + 1)} place · ${plural(n, "game")}">
+        <b>${n || ""}</b><span class="tr"><i style="height:${(100 * n / max).toFixed(0)}%"></i></span><small>${ordinal(i + 1)}</small>
+      </div>`).join("")}</div></div>`;
+  } else if (q !== "aram") {
+    const { total, roles } = byRole(rows);
+    block3 = `<div><p class="hd">Preferred position</p>${total ? `<div class="bars">${roles.map((r) => `
+      <div class="bar ${r.games ? "on" : ""}" title="${r.label} · ${plural(r.games, "game")}">
+        <span class="tr"><i style="height:${r.share.toFixed(0)}%"></i></span>
+        ${pic(POSITION(r.key), "pos bare", { alt: r.label })}
+        <small>${r.games ? pct(r.share) : "–"}</small>
+      </div>`).join("")}</div>` : `<p class="kp">No lane data in these games (ARAM and Arena have no positions).</p>`}</div>`;
+  }
+  return `<div class="card">${header}<div class="sumg ${block3 ? "" : "two"}">${block1}${block2}${block3}</div></div>`;
+}
+
+/* ---------- match rows ---------- */
+function matchRow(m) {
+  const arena = m._k === "arena", aram = m._k === "aram";
+  const res = m.remake ? "remake" : m.win ? "win" : "loss";
+  const first = arena && !m.remake && m.placement === 1;
+  const isOpen = openRows.has(m.match_id || m._i);
+  const result = m.remake ? "Remake" : arena && m.placement ? `${ordinal(m.placement)} place` : m.win ? "Victory" : "Defeat";
+  const spells = two(m.spells).map((s) => pic(s?.icon, "", { alt: s?.name, title: s?.name })).join("");
+  const augs = m.augments || [];
+  const runes = augs.length
+    ? `<span class="augs">${augs.slice(0, 6).map(aug).join("")}</span>`
+    : `<span class="stack">${pic(m.keystone?.icon, "rn", { alt: m.keystone?.name, title: m.keystone?.name })}${pic(m.secondary_tree?.icon, "rn tree", { alt: m.secondary_tree?.name, title: m.secondary_tree?.name })}</span>`;
+  const items = [...(m.items || []), null, null, null, null, null, null].slice(0, 6).map((it) => pic(it?.icon, "", { item: it?.id })).join("")
+    + pic(m.trinket?.icon, "tk", { item: m.trinket?.id });
+  // The first badge (the multikill wins) goes under the KDA ratio; a second one follows the items
+  // where the row is wide enough, and is named in the first chip's title either way.
+  const badges = [];
+  if (!m.remake && MULTIKILL[m.multikill]) badges.push(["mk", MULTIKILL[m.multikill]]);
+  const maxDmg = Math.max(0, ...m.board.map((b) => num(b.damage)));
+  if (!m.remake && num(m.damage) > 0 && num(m.damage) >= maxDmg) badges.push(["md", "Most damage"]);
+  const chip = ([cls, text], title = text) => `<span class="badge ${cls}" title="${title}">${text}</span>`;
+  const badge1 = badges.length ? `<span class="badges">${chip(badges[0], badges.map((b) => b[1]).join(" · "))}</span>` : "";
+  const badge2 = badges[1] ? `<span class="badges b2">${chip(badges[1])}</span>` : "";
+  const kp = Math.min(100, num(m.kill_participation));
+  const stats = arena
+    ? `<div class="kp">Duo P/Kill <b>${pct(kp)}</b></div><div>Damage <b>${short(num(m.damage))}</b></div><div><b>${num(m.teams) || 8}</b> teams</div>`
+    : aram
+      ? `<div class="kp">P/Kill <b>${pct(kp)}</b></div><div>CS <b>${num(m.cs)}</b> (${num(m.cs_per_min).toFixed(1)})</div><div>Damage <b>${short(num(m.damage))}</b></div>`
+      : `<div class="kp">P/Kill <b>${pct(kp)}</b></div><div>Control ward <b>${num(m.control_wards)}</b></div><div>CS <b>${num(m.cs)}</b> (${num(m.cs_per_min).toFixed(1)})</div><div>Vision <b>${num(m.vision)}</b></div>`;
+  const when = new Date(m.ended_at_ms);
+
+  return `
+  <article class="m ${res}${first ? " first" : ""}" data-mid="${esc(rowKey(m))}" aria-label="${esc(queueName(m))}, ${result}, ${esc(m.champion)}">
+    <div class="mrow">
+      <div class="mmeta">
+        <span class="q" title="${esc(queueName(m))}">${esc(queueName(m))}</span>
+        <span title="${esc(isNaN(when) ? "" : when.toLocaleString())}">${ago(m.ended_at_ms)}</span>
+        <i class="hr"></i>
+        <span class="res">${result}</span>
+        <span>${clock(num(m.duration_s))}</span>
+      </div>
+      <div class="mgame">
+        <div class="top">
+          <span class="portrait">${pic(m.champion_icon, "ch", { alt: m.champion, title: m.champion })}<b class="lvl">${num(m.level)}</b></span>
+          <span class="stack">${spells}</span>
+          ${runes}
+          <div class="kda">
+            <div class="line">${num(m.kills)}<s>/</s><span class="d">${num(m.deaths)}</span><s>/</s>${num(m.assists)}</div>
+            <div class="r ${perfect(m.kills, m.deaths, m.assists) ? "t5" : ""}">${perfect(m.kills, m.deaths, m.assists) ? "Perfect KDA" : `${ratio(m.kills, m.deaths, m.assists).toFixed(2)}:1 KDA`}</div>
+            ${badge1}
+          </div>
+        </div>
+        <div class="bot"><span class="items">${items}</span>${badge2}</div>
+      </div>
+      <div class="mstats">${stats}</div>
+      ${arena ? duoColumn(m) : teamColumn(m)}
+      <button class="mexp" type="button" data-exp="${m._i}" aria-expanded="${isOpen}" aria-controls="md-${m._i}" aria-label="Scoreboard: ${esc(queueName(m))}, ${result}, ${esc(m.champion)}">${ICON.chevron}</button>
+    </div>
+    <div class="mdetail" id="md-${m._i}"${isOpen ? "" : " hidden"}>${isOpen ? scoreboard(m) : ""}</div>
+  </article>`;
+}
+
+function playerChip(b) {
+  const rid = riotIdOf(b);
+  const inner = `${pic(b.icon, "ch", { alt: "" })}<span>${esc(b.name || b.champion)}</span>`;
+  const title = esc(`${rid || b.name || "Player"} · ${b.champion}`);
+  if (b.is_me || !rid) return `<span class="pp${b.is_me ? " me" : ""}" title="${title}">${inner}</span>`;
+  // Out of the Tab order: keyboard users reach the same links in the scoreboard, one expand button per row.
+  return `<a class="pp" href="${esc(profileHref(rid))}" data-riot="${esc(rid)}" title="${title}" tabindex="-1">${inner}</a>`;
+}
+function teamColumn(m) {
+  const ids = [...new Set(m.board.map((b) => b.team_id))].sort((a, b) => a - b).slice(0, 2);
+  return `<div class="mteams">${ids.map((id) => `<div class="tm">${m.board.filter((b) => b.team_id === id).map(playerChip).join("")}</div>`).join("")}</div>`;
+}
+function duos(m) {
+  const map = new Map();
+  for (const b of m.board) {
+    const id = b.subteam || 0;
+    if (!map.has(id)) map.set(id, []);
+    map.get(id).push(b);
+  }
+  return [...map.entries()].map(([id, players]) => ({
+    id, players, me: players.some((p) => p.is_me),
+    place: Math.min(...players.map((p) => p.placement || 99)),
+  })).sort((a, b) => a.place - b.place);
+}
+function duoColumn(m) {
+  return `<div class="mteams mduos">${duos(m).slice(0, 8).map((d) => `
+    <span class="dc ${placeClass(d.place)}${d.me ? " me" : ""}"><em>#${d.place < 99 ? d.place : "–"}</em>${d.players.map((b) => {
+      const rid = riotIdOf(b), title = `${rid || b.name || "Player"} · ${b.champion}`;
+      return rid && !b.is_me
+        ? `<a href="${esc(profileHref(rid))}" data-riot="${esc(rid)}" title="${esc(title)}" aria-label="${esc(`${rid} (${b.champion})`)}" tabindex="-1">${pic(b.icon, "ch")}</a>`
+        : `<span class="di" title="${esc(title)}">${pic(b.icon, "ch", { alt: b.champion })}</span>`;
+    }).join("")}</span>`).join("")}</div>`;
+}
+
+/* ---------- expanded scoreboard ---------- */
+// Name on the first line (the whole cell width), "#TAG · Champion · Role" on the small line.
+function nameCell(b, sub) {
+  const rid = riotIdOf(b);
+  const label = esc(b.name || b.champion);
+  const name = rid && !b.is_me
+    ? `<a class="nm" href="${esc(profileHref(rid))}" data-riot="${esc(rid)}" title="${esc(`${rid} · ${b.champion}`)}">${label}</a>`
+    : `<span class="nm" title="${esc(`${rid || b.name || ""} · ${b.champion}`)}">${label}</span>`;
+  // `sub` is already-escaped plain text, so it can double as the tooltip.
+  const line = `${b.tag ? `#${esc(b.tag)} · ` : ""}${sub}`;
+  return `<div class="sbp">${name}<small title="${line}">${line}</small></div>`;
+}
+// Champion cell: portrait + spells + (keystone or augments). With the separate Augments
+// column (ARAM Mayhem) the third stack is left out, which gives the Player column its width back.
+function champCell(b, cls = "sm", third = true) {
+  const spells = two(b.spells).map((s) => pic(s?.icon, "", { alt: s?.name, title: s?.name })).join("");
+  const augs = b.augments || [];
+  const runes = !third ? "" : augs.length
+    ? `<span class="augs sm">${augs.slice(0, 6).map(aug).join("")}</span>`
+    : `<span class="stack sm">${pic(b.keystone?.icon, "rn", { alt: b.keystone?.name, title: b.keystone?.name })}${pic(b.secondary_tree?.icon, "rn tree", { alt: b.secondary_tree?.name, title: b.secondary_tree?.name })}</span>`;
+  return `<div class="sbc"><span class="portrait ${cls}">${pic(b.icon, "ch", { alt: b.champion, title: b.champion })}<b class="lvl">${num(b.level)}</b></span><span class="stack sm">${spells}</span>${runes}</div>`;
+}
+const boardItems = (b) => `<span class="items sm">${[...(b.items || []), 0, 0, 0, 0, 0, 0].slice(0, 6).map((id) => pic(itemUrl(id), "", { item: id })).join("")}${pic(itemUrl(b.trinket), "tk", { item: b.trinket })}</span>`;
+const dmgCell = (b, max) => `<div class="sbd"><span>${nf.format(num(b.damage))}</span><span class="dbar"><i style="width:${(100 * num(b.damage) / max).toFixed(1)}%"></i></span></div>`;
+
+function scoreboard(m) {
+  if (m._k === "arena") return arenaBoard(m);
+  const aram = m._k === "aram";
+  const me = m.board.find((b) => b.is_me);
+  const ids = [...new Set(m.board.map((b) => b.team_id))]
+    .sort((a, b) => (b === me?.team_id) - (a === me?.team_id) || a - b);
+  const sides = Object.fromEntries((m.sides || []).map((s) => [s.team_id, s]));
+  const ctx = {
+    aram, sides, mins: Math.max(num(m.duration_s) / 60, 1 / 60),
+    // ARAM Mayhem and friends: augments get a column of their own (in place of wards on ARAM).
+    augCol: m.board.some((b) => (b.augments || []).length),
+    maxDmg: Math.max(1, ...m.board.map((b) => num(b.damage))),
+    objectives: !aram && (m.sides || []).length
+      ? OBJECTIVES.filter(([key, , , always]) => always || m.sides.some((s) => num(s.objectives?.[key]) > 0)) : [],
+  };
+  const tables = ids.map((id) => teamTable(m, id, ctx, id === me?.team_id));
+  return `
+    ${m.remake ? `<p class="rmk">Remake: the game ended early, so it is not counted anywhere.</p>` : ""}
+    ${tables[0] || ""}
+    ${ids.length === 2 ? compare(m, sides) : ""}
+    ${tables.slice(1).join("")}
+    ${detailFooter(m)}`;
+}
+function teamTotals(m, id, sides) {
+  const players = m.board.filter((b) => b.team_id === id);
+  return { kills: num(sides[id]?.kills ?? sum(players, "kills")), gold: num(sides[id]?.gold ?? sum(players, "gold")), players };
+}
+function teamTable(m, id, ctx, mine) {
+  const { kills, gold, players } = teamTotals(m, id, ctx.sides);
+  const win = ctx.sides[id] ? ctx.sides[id].win : players[0]?.win;
+  const cls = m.remake ? "remake" : win ? "win" : "loss";
+  const side = id === 100 ? "Blue side" : id === 200 ? "Red side" : `Team ${num(id)}`;
+  const objs = ctx.objectives.map(([key, label, glyph]) =>
+    `<span class="ob" title="${label}">${glyph}<b>${num(ctx.sides[id]?.objectives?.[key])}</b><span class="sr"> ${label}</span></span>`).join("");
+  const hid = `sbh-${m._i}-${num(id)}`;
+  // The team header sits outside the scroll box, so on a phone the objectives stay in view.
+  return `<div class="sbt${mine ? " mine" : ""}">
+    <div class="thd ${cls} s${num(id)}" id="${hid}"><b>${m.remake ? "Remake" : win ? "Victory" : "Defeat"}</b><span class="sd">${side}</span>
+      <span class="tt"><b>${kills}</b> kills · <b>${short(gold)}</b> gold</span>${objs ? `<span class="obs">${objs}</span>` : ""}</div>
+    <div class="sbx"><table class="sb s${num(id)}${ctx.augCol ? " augcol" : ""}" aria-labelledby="${hid}">
+    <colgroup><col class="c-ch"><col><col class="c-kda"><col class="c-dmg">${ctx.augCol ? `<col class="c-aug">` : ""}${ctx.aram ? "" : `<col class="c-w">`}<col class="c-cs"><col class="c-it"></colgroup>
+    <thead><tr><th scope="col">Champion</th><th scope="col">Player</th><th scope="col">KDA</th><th scope="col">Damage</th>${ctx.augCol ? `<th scope="col">Augments</th>` : ""}${ctx.aram ? "" : `<th scope="col" title="Control wards bought / wards placed / wards killed">Wards</th>`}<th scope="col">CS</th><th scope="col">Items</th></tr></thead>
+    <tbody>${players.map((b) => {
+      const kp = kills ? Math.round(100 * (num(b.kills) + num(b.assists)) / kills) : 0;
+      const role = ROLE_BY_API[b.role]?.label;
+      return `<tr class="${b.is_me ? "me" : ""}">
+        <td>${champCell(b, "sm", !ctx.augCol)}</td>
+        <td>${nameCell(b, `${esc(b.champion)}${role ? ` · ${role}` : ""}`)}</td>
+        <td><div class="sbk"><b>${num(b.kills)} / <span class="d">${num(b.deaths)}</span> / ${num(b.assists)}</b><small><span class="${tier(b.kills, b.deaths, b.assists)}">${kdaStr(b.kills, b.deaths, b.assists)}</span> · KP ${kp}%</small></div></td>
+        <td>${dmgCell(b, ctx.maxDmg)}</td>
+        ${ctx.augCol ? `<td><span class="augs row">${(b.augments || []).slice(0, 6).map(aug).join("")}</span></td>` : ""}
+        ${ctx.aram ? "" : `<td class="sbw" title="Control / placed / killed">${num(b.control_wards)} / ${num(b.wards_placed)} / ${num(b.wards_killed)}</td>`}
+        <td><div class="sbcs">${num(b.cs)}<small>${(num(b.cs) / ctx.mins).toFixed(1)}/m</small></div></td>
+        <td>${boardItems(b)}</td>
+      </tr>`;
+    }).join("")}</tbody></table></div></div>`;
+}
+function compare(m, sides) {
+  const blue = teamTotals(m, 100, sides), red = teamTotals(m, 200, sides);
+  const row = (label, b, r, fmt) => {
+    const share = b + r ? 100 * b / (b + r) : 50;
+    return `<div class="cr"><em>${label}</em><b class="bl">${fmt(b)}</b>
+      <span class="cb" role="img" aria-label="${label}: blue ${fmt(b)}, red ${fmt(r)}"><i style="width:${share.toFixed(1)}%"></i></span><b class="rd">${fmt(r)}</b></div>`;
+  };
+  return `<div class="cmp">${row("Kills", blue.kills, red.kills, (n) => nf.format(n))}${row("Gold", blue.gold, red.gold, short)}</div>`;
+}
+// Review is the macro review: challenger jungle games read decision by decision. Only a game in that corpus
+// links there; the list comes from the static site, so the link never appears where review-data is absent.
+let MACRO = new Map();
+fetch("review-data/games.json").then((r) => (r.ok ? r.json() : null))
+  .then((j) => { MACRO = new Map(((j && j.games) || []).map((g) => [g.mid, g])); })
+  .catch(() => {});
+function detailFooter(m) {
+  const g = m.match_id ? MACRO.get(m.match_id) : null;
+  const review = g
+    ? `<a href="macro.html#/${encodeURIComponent(g.mid)}/0">Review this game →</a>${Number(m.participant_id) !== Number(g.pid)
+      ? ` <small>jungle decisions from ${esc(g.label)}'s view</small>` : ""}`
+    : "<span></span>";
+  return `<div class="mfoot">${review}<span>${m.patch ? `Patch ${esc(m.patch)} · ` : ""}<code>${esc(m.match_id || "")}</code></span></div>`;
+}
+function arenaBoard(m) {
+  const maxDmg = Math.max(1, ...m.board.map((b) => num(b.damage)));
+  const player = (b) => `<div class="ap${b.is_me ? " me" : ""}">
+    <span class="portrait xs">${pic(b.icon, "ch", { alt: b.champion, title: b.champion })}<b class="lvl">${num(b.level)}</b></span>
+    ${nameCell(b, esc(b.champion))}
+    <div class="sbk"><b>${num(b.kills)} / <span class="d">${num(b.deaths)}</span> / ${num(b.assists)}</b><small><span class="${tier(b.kills, b.deaths, b.assists)}">${kdaStr(b.kills, b.deaths, b.assists)}</span></small></div>
+    ${dmgCell(b, maxDmg)}
+    <span class="augs row">${(b.augments || []).slice(0, 6).map(aug).join("")}</span>
+    ${boardItems(b)}
+  </div>`;
+  return `
+    ${m.remake ? `<p class="rmk">Remake: the game ended early, so it is not counted anywhere.</p>` : ""}
+    <div class="sbx"><div class="ab">
+      <div class="duo hd" aria-hidden="true"><div class="dp">Place</div><div class="ap"><span></span><span>Player</span><span>K / D / A</span><span>Damage</span><span>Augments</span><span>Items</span></div></div>
+      ${duos(m).map((d) => `<div class="duo ${placeClass(d.place)}${d.me ? " me" : ""}">
+        <div class="dp">${d.place < 99 ? ordinal(d.place) : "–"}</div>
+        <div class="dps">${d.players.map(player).join("")}</div>
+      </div>`).join("")}
+    </div></div>
+    ${detailFooter(m)}`;
+}
+
+/* ---------- champions tab ---------- */
+// Columns follow the filtered window: Avg place only with Arena games (right after Played),
+// CS/min only with lane games, vision and control wards only with Summoner's Rift games.
+const DASH = `<span class="dash">—</span>`;
+const COLS = [
+  { key: "champion", label: "Champion", dir: 1, cls: "cc", val: (c) => c.champion,
+    cell: (c) => `<div class="chn">${pic(c.icon, "ch", { alt: "" })}<button type="button" data-champ="${esc(c.champion)}">${esc(c.champion)}</button></div>` },
+  { key: "games", label: "Played", dir: -1, val: (c) => c.games + c.winrate / 1000,
+    cell: (c) => `<div class="wl"><span class="wlbar" role="img" aria-label="${nf.format(c.wins)} wins, ${nf.format(c.losses)} losses">${c.wins ? `<i class="w" style="flex:${c.wins}">${nf.format(c.wins)}W</i>` : ""}${c.losses ? `<i class="l" style="flex:${c.losses}">${nf.format(c.losses)}L</i>` : ""}</span><b class="${hotRate(c.winrate)}">${pct(c.winrate)}</b></div>` },
+  { key: "place", label: "Avg place", dir: 1, cls: "num", show: (t) => t.arenaGames > 0, val: (c) => c.avgPlace,
+    cell: (c) => c.avgPlace === null ? DASH : c.avgPlace.toFixed(1) },
+  { key: "kda", label: "KDA", dir: -1, val: (c) => c.kda,
+    cell: (c) => `<b class="${tier(c.K, c.D, c.A)}">${kdaStr(c.K, c.D, c.A)}</b><small>${(c.K / c.games).toFixed(1)} / ${(c.D / c.games).toFixed(1)} / ${(c.A / c.games).toFixed(1)}</small>` },
+  { key: "gold", label: "Gold", dir: -1, cls: "num", val: (c) => c.goldAvg, cell: (c) => nf.format(Math.round(c.goldAvg)) },
+  { key: "cs", label: "CS/min", dir: -1, cls: "num", show: (t) => t.lanes > 0, val: (c) => c.cspm,
+    cell: (c) => c.cspm === null ? `<span class="dash" title="Arena has no CS">—</span>` : c.cspm.toFixed(1) },
+  { key: "damage", label: "Damage", dir: -1, cls: "num", val: (c) => c.dmgAvg, cell: (c) => nf.format(Math.round(c.dmgAvg)) },
+  { key: "vision", label: "Vision", dir: -1, cls: "num", show: (t) => t.rift > 0, val: (c) => c.visAvg,
+    cell: (c) => c.visAvg === null ? `<span class="dash" title="Summoner's Rift games only">—</span>` : c.visAvg.toFixed(1) },
+  { key: "cw", label: "Control wards", dir: -1, cls: "num", show: (t) => t.rift > 0, val: (c) => c.cwAvg,
+    cell: (c) => c.cwAvg === null ? `<span class="dash" title="Summoner's Rift games only">—</span>` : c.cwAvg.toFixed(1) },
+];
+// A rebuild keeps the reader's place: a focused control (source switch, sort header) keeps
+// focus and the table keeps its sideways scroll (phones scroll it to reach the later columns).
+// poll: a season poll asked for it (see seasonChanged), so the rows keep their order.
+function renderChampions(pipe, spipe, poll = false) {
+  const box = $("#ctable");
+  const keep = focusKey(box);
+  const x = box.querySelector(".ctwrap")?.scrollLeft || 0;
+  clearTimeout(ctHold.timer);
+  ctHold.pending = false;
+  ctHold.last = Date.now();
+  ctHold.src = champSource();
+  box.innerHTML = sourceBar() + champTable(pipe, spipe, poll);
+  const wrap = box.querySelector(".ctwrap");
+  if (wrap) { if (x) wrap.scrollLeft = x; fade(wrap); }
+  if (keep) box.querySelector(keep)?.focus({ preventScroll: true });
+}
+// Champions tab while the season syncs (10-30 min on a dev key, a poll every 2.5 s): a poll never
+// pulls the table from under the reader. Rows hold their order until the sync ends or the reader
+// sorts or filters; a rebuild waits while the table is being used (pointer moving or pressed,
+// scrolled, touched or typed in within 1.5 s) and comes at most every CT_MIN_MS. The progress
+// label and bar keep moving in between.
+// src: the source the table on screen was built from. When the first season rows turn "auto"
+// from the loaded games to the season, the switch only waits while the table is in use.
+const ctHold = { at: 0, last: 0, timer: 0, pending: false, order: null, src: "" };
+const ctInUse = () => Date.now() - ctHold.at < 1500;
+const ctHeld = () => ctInUse() || (seasonSyncing() && ctHold.src === champSource() && Date.now() - ctHold.last < CT_MIN_MS);
+function ctRetry() {
+  clearTimeout(ctHold.timer);
+  ctHold.timer = setTimeout(() => {
+    if (!ctHold.pending || view !== "champions") { ctHold.pending = false; return; }
+    if (ctHeld()) { ctRetry(); return; }
+    seasonChanged(true);
+  }, 600);
+}
+
+// Season (every game of the season the server has read) or the games loaded on the page.
+function sourceBar() {
+  const src = champSource(), year = seasonYear(), has = seasonUsable(), info = syncInfo();
+  const status = season?.status === "error"
+    ? `<span class="sl err" title="${esc(season.error)}">Season stats are unavailable right now. <button class="linkbtn" type="button" data-act="season-retry">Retry</button></span>`
+    : info ? `<span class="sl js-sync-long" title="${esc(info.title)}">${esc(info.long)}</span>` : "";
+  return `<div class="srcbar">
+    <div class="seg" role="group" aria-label="Games counted">
+      <button type="button" data-src="season" aria-pressed="${src === "season"}"${has ? "" : " disabled"} title="${has ? `Every Season ${year} game the server has read` : "Available once the first season games are read"}">Season ${year}</button>
+      <button type="button" data-src="loaded" aria-pressed="${src === "loaded"}" title="The games loaded on the Summary tab">Loaded games (${nf.format(current.matches.length)})</button>
+    </div>${status}
+  </div>`;
+}
+
+const ctCount = (champs, games) => `${plural(champs, "champion")} · ${plural(games, "game")}${filt.queue === "all" ? "" : ` · ${queueLabel()}`}`;
+// A held table (see ctHold) keeps its rows, but its header counts and the queue tab counts follow
+// every poll, so they agree with the progress label above; the rows catch up at the next rebuild.
+function patchCtCounts() {
+  const el = $("#ctable .js-ct-n");
+  const spipe = el && champSource() === "season" ? seasonPipe() : null;
+  if (!spipe) return;
+  renderQueueTabs(pipeline(), spipe);
+  const counted = spipe.rows.filter((r) => !r.remake);
+  if (counted.length) el.textContent = ctCount(new Set(counted.map((r) => r.champion)).size, counted.length);
+}
+function champTable(pipe, spipe, poll = false) {
+  const inSeason = champSource() === "season";
+  const { rows } = inSeason ? spipe : pipe;
+  if (!rows.length) { ctHold.order = null; return emptyState(inSeason ? "season" : "loaded"); }
+  const t = aggregate(rows);
+  const info = inSeason ? syncInfo() : null;
+  if (!t.games) {
+    ctHold.order = null;
+    return `<div class="card sc">${syncBar(info)}<h3>Champions <small>${plural(t.remakes, "remake")}${filt.queue === "all" ? "" : ` · ${queueLabel()}`}</small></h3>
+      <p class="empty">Only remakes here. They are not counted, so there is nothing to average.</p></div>`;
+  }
+  const cols = COLS.filter((c) => !c.show || c.show(t));
+  if (!cols.some((c) => c.key === sortBy.key)) sortBy = { key: "games", dir: -1 };
+  const col = cols.find((c) => c.key === sortBy.key);
+  let list = byChampion(rows).sort((a, b) => {
+    const x = col.val(a), y = col.val(b);
+    if (x === null && y === null) return 0;
+    if (x === null) return 1;
+    if (y === null) return -1;
+    const d = typeof x === "string" ? x.localeCompare(y) : x - y;
+    return d * sortBy.dir || b.games - a.games;
+  });
+  // During a sync a poll keeps the order on screen: known champions stay put, new ones join at
+  // the bottom (in sort order). Sorting, filtering, a source switch or the sync's end re-rank.
+  const sig = `${champSource()}|${filt.queue}|${norm(filt.champ)}|${sortBy.key}|${sortBy.dir}|${cols.map((c) => c.key).join()}`;
+  const frozen = inSeason && !!info;
+  if (poll && frozen && ctHold.order?.sig === sig) {
+    const at = ctHold.order.at;
+    list = list.map((c, i) => [c, at.has(c.champion) ? at.get(c.champion) : at.size + i])
+      .sort((a, b) => a[1] - b[1]).map(([c]) => c);
+  }
+  ctHold.order = { sig, at: new Map(list.map((c, i) => [c.champion, i])) };
+  const th = (c) => `<th scope="col" class="${c.cls || ""}" aria-sort="${c.key === sortBy.key ? (sortBy.dir > 0 ? "ascending" : "descending") : "none"}"${c.key === "games" && t.arenaGames ? ` title="In Arena a top-4 finish counts as a win"` : ""}><button type="button" data-sort="${c.key}">${c.label}</button></th>`;
+  return `<div class="card sc">${syncBar(info)}
+    <h3>Champions <small${frozen ? ` class="js-ct-n"` : ""}>${ctCount(list.length, t.games)}</small></h3>
+    <div class="ctwrap"><table class="ct">
+      <thead><tr><th scope="col" class="rank">#</th>${cols.map(th).join("")}</tr></thead>
+      <tbody>${list.map((c, i) => `<tr data-champ="${esc(c.champion)}" title="${inSeason ? `Filter Summary to ${esc(c.champion)}` : `Show ${esc(c.champion)} games`}">
+        <td class="rank">${i + 1}</td>
+        ${cols.map((col) => `<td${col.cls ? ` class="${col.cls}"` : ""}>${col.cell(c)}</td>`).join("")}
+      </tr>`).join("")}</tbody>
+    </table></div>
+  </div>
+  <p class="note">${[
+    inSeason
+      ? `Averages per game over every Season ${seasonYear()} game the server has read${info ? " so far (still counting)" : ""}.${season.capped ? ` Only the latest ${nf.format(season.maxGames || season.total || 0)} were read.` : ""}`
+      : `Averages per game over the ${plural(current.matches.length, "game")} loaded.`,
+    t.remakes ? "Remakes excluded." : "",
+    t.arenaGames && t.lanes ? "CS/min excludes Arena." : "",
+    t.rift && t.rift < t.games ? "Vision and control wards cover Summoner's Rift games only." : "",
+    t.arenaGames ? "In Arena a top-4 finish counts as a win." : "",
+    frozen ? "While the count runs, rows hold their place and catch up every few seconds; they re-sort when it ends or when you sort a column." : "",
+    inSeason ? "Click a champion to filter the Summary tab (the loaded games) to it." : "Click a champion to see its games.",
+  ].filter(Boolean).join(" ")}</p>`;
+}
+
+/* ---------- load more ---------- */
+const hasMoreOf = (body, n) => typeof body.has_more === "boolean" ? body.has_more : n >= COUNT;
+
+// Under the last match row: the button, a quiet end line once Riot has nothing older, or an
+// inline error with Retry. The caption counts the loaded games (and the filtered ones), so a
+// click that adds nothing to the current filter still visibly did something.
+function renderMore(pipe) {
+  const box = $("#mmore");
+  const m = more;
+  if (!current || !m) { box.innerHTML = ""; return; }
+  const focused = box.contains(document.activeElement);
+  const what = [champName(), filt.queue === "all" ? "" : queueLabel()].filter(Boolean).join(" ");
+  // While a page loads, the caption says why it takes a while and counts the seconds (like the first load).
+  const cap = m.busy
+    ? `Up to ${PAGE} older games, 1.3 s apart for Riot's rate limit · <b class="js-more-t" aria-hidden="true">${Math.round((Date.now() - m.started) / 1000)}s</b>`
+    : `<b>${plural(current.matches.length, "game")}</b> loaded${what ? ` · ${pipe.counts[filt.queue]} ${esc(what)}` : ""}`;
+  let main;
+  if (m.error) {
+    // Announced once from loadMore(); this block is redrawn with every filter change.
+    main = `<div class="merr"><span>${m.error}</span><button class="ghost" type="button" data-act="more">Retry</button></div>`;
+  } else if (m.hasMore) {
+    main = m.busy
+      ? `<button class="btn-more" type="button" data-act="more" aria-disabled="true" aria-busy="true"><span class="spinner" aria-hidden="true"></span>Loading games…</button>`
+      : `<button class="btn-more" type="button" data-act="more">${ICON.chevron}Load ${PAGE} more games</button>`;
+  } else {
+    main = `<p class="mend" tabindex="-1">${m.next > MAX_START ? "That's as far back as this page reads." : "That's every game Riot lists for this player."}</p>`;
+  }
+  box.innerHTML = `${main}<p class="mcap">${cap}</p>`;
+  if (focused) box.querySelector("button,.mend")?.focus({ preventScroll: true });
+}
+
+// What the reader is looking at: the first panel or game in view, in page order (a game at the
+// end of the list after a click on the button, the season card when they scrolled up to it).
+// The returned function scrolls by however far it moved, so a Load more never shifts the page
+// under the reader, even below 1080px where the season card and played-with sit above the games
+// and grow with a page. Browsers with CSS scroll anchoring have usually done it already (the
+// correction is then 0); Safari has none. Absolute scroll positions are not restored: that
+// undid the browser's own anchoring.
+function viewAnchor() {
+  const top = $(".nav").getBoundingClientRect().bottom, bottom = window.innerHeight;
+  const inView = (el) => { const r = el.getBoundingClientRect(); return r.height > 0 && r.bottom > top && r.top < bottom; };
+  const el = [...document.querySelectorAll("#ranks,#champcard,#withcard,#sumcard,#mlist>article,#mmore")].find(inView);
+  if (!el) return null;
+  const mid = el.matches("article") ? el.dataset.mid : undefined, y = el.getBoundingClientRect().top;
+  return () => {
+    // A redrawn list has new elements: the same game is found by its id.
+    const now = mid !== undefined ? [...$("#mlist").children].find((a) => a.dataset.mid === mid) : el;
+    if (!now?.isConnected) return;
+    const d = now.getBoundingClientRect().top - y;
+    if (Math.abs(d) > 1) window.scrollBy(0, d);
+  };
+}
+
+// One page at a time; a click while a page is loading is ignored. The next offset counts the
+// ids the server has paged through (20 per page), not the rows kept after deduping.
+let moreTick = 0;
+async function loadMore() {
+  const m = more;
+  if (!m || !current || m.busy || !m.hasMore) return;
+  m.busy = true;
+  m.error = "";
+  m.started = Date.now();
+  const ctrl = m.ctrl = new AbortController();
+  let timedOut = false;
+  const timeout = setTimeout(() => { timedOut = true; ctrl.abort(); }, MORE_TIMEOUT_MS);
+  clearInterval(moreTick);
+  moreTick = setInterval(() => {
+    if (!m.busy || more !== m) { clearInterval(moreTick); return; }
+    const t = $("#mmore .js-more-t");
+    if (t) t.textContent = `${Math.round((Date.now() - m.started) / 1000)}s`;
+  }, 500);
+  $("#more-status").textContent = `Loading ${PAGE} more games…`;
+  renderMore(pipeline());
+  const p = current;
+  const url = `${API}/api/summoner/matches?riot_id=${encodeURIComponent(p._query || p.riot_id)}&region=${encodeURIComponent(p.region.key)}&start=${m.next}&count=${PAGE}`;
+  let body;
+  try {
+    let res;
+    try {
+      res = await fetch(url, { signal: ctrl.signal });
+    } catch (err) {
+      if (err.name === "AbortError") throw err;
+      throw new Error(`Could not reach the Videns API at ${esc(API || location.origin)}.`);
+    }
+    body = await res.json().catch((err) => { if (err.name === "AbortError") throw err; return {}; });
+    if (!res.ok) throw new Error(apiError(res.status, body?.detail));
+    if (!isObj(body) || !Array.isArray(body.matches)) throw new Error("The API answered with something this page cannot read.");
+  } catch (err) {
+    // Aborted by another lookup (pauseExtras): nothing to say. Aborted by the timeout: an error.
+    if ((err.name === "AbortError" && !timedOut) || more !== m) return;
+    m.busy = false;
+    m.ctrl = null;
+    m.error = `<b>Could not load more games.</b> ${timedOut
+      ? `Riot is slow right now: no answer after ${MORE_TIMEOUT_MS / 1000} s. Games the server fetched meanwhile are kept, so a retry is quicker.`
+      : err.message}`;
+    $("#more-status").textContent = plainText(m.error);
+    if (view === "summary") renderMore(pipeline());
+    return;
+  } finally {
+    clearTimeout(timeout);
+  }
+  if (more !== m || !current) return;
+  m.busy = false;
+  m.ctrl = null;
+  const rows = body.matches.filter(isObj).map(prepMatch);
+  const before = current.matches.length;
+  current.matches = mergeRows(current.matches, rows);
+  const added = current.matches.length - before;
+  const start = Number.isFinite(Number(body.start)) ? Number(body.start) : m.next;
+  m.next = start + (num(body.count) || PAGE);
+  m.hasMore = hasMoreOf(body, rows.length) && m.next <= MAX_START;
+  // Every panel reads the merged list; the new rows are appended under the ones on screen.
+  // What the reader was looking at stays put even when a card above it grew (see viewAnchor).
+  const fromButton = $("#mmore").contains(document.activeElement);
+  const hold = view === "summary" ? viewAnchor() : null;
+  update({ append: true });
+  hold?.();
+  // The new rows that pass the current filter, whichever tab is open now (a page's duplicates
+  // were dropped by the merge, which keeps the copy already loaded).
+  const fresh = new Set(rows);
+  const newShown = pipeline().rows.filter((r) => fresh.has(r));
+  // Activated from the button: focus goes to the first new game, which sits where the button was.
+  if (fromButton && view === "summary") {
+    const first = newShown[0] && [...$("#mlist").children].find((a) => a.dataset.mid === rowKey(newShown[0]));
+    if (first) {
+      first.tabIndex = -1;
+      first.focus({ preventScroll: true });
+      // A keyboard user must see the ring: bring the whole row in (the least scroll that does it).
+      if (first.matches(":focus-visible")) first.scrollIntoView({ block: "nearest" });
+    }
+    else $("#mmore").querySelector("button,.mend")?.scrollIntoView({ block: "nearest" });
+  }
+  const what = [champName(), filt.queue === "all" ? "" : queueLabel()].filter(Boolean).join(" ");
+  const matching = newShown.filter((r) => !r.remake).length;
+  $("#more-status").textContent = added
+    ? `Loaded ${plural(added, "more game")}. ${plural(current.matches.length, "game")} loaded.${what ? ` ${matching || "None"} of them match the filter: ${what}.` : ""}`
+    : "That page had no games that were not already loaded.";
+}
+
+/* ---------- season sync ---------- */
+// Riot has no per-champion season totals, so the server reads the player's whole season in
+// the background. The page polls its progress and streams the compact rows in: rows only grow
+// while a server job lives, so each poll asks for the rows after the ones already held.
+const seasonUsable = () => !!season && season.rows.length > 0 && season.status !== "error";
+const seasonSyncing = () => !!season && ["", "queued", "running"].includes(season.status);
+const seasonYear = () => season?.year || new Date().getFullYear();
+function champSource() {
+  if (champSrc === "loaded") return "loaded";
+  return seasonUsable() ? "season" : "loaded";
+}
+// The compact progress label ("Syncing 142 / 568", "Queued #2"), the same with a time estimate
+// where there is room (long), and the bar's share.
+function syncInfo() {
+  const s = season;
+  if (!seasonSyncing()) return null;
+  const year = seasonYear();
+  if (s.status === "queued") {
+    const text = s.queuePos > 0 ? `Queued #${s.queuePos}` : "Queued";
+    return { text, long: text, pct: null,
+      title: s.queuePos > 1 ? `The server reads one season at a time: ${plural(s.queuePos - 1, "player")} ahead` : `The Season ${year} sync starts shortly` };
+  }
+  if (s.total === null) return { text: "Syncing…", long: "Syncing…", pct: null, title: `Listing the Season ${year} games` };
+  const text = `Syncing ${nf.format(s.scanned)} / ${nf.format(s.total)}`;
+  const eta = seasonEta(s);
+  return {
+    text, long: eta === null ? text : `${text} · ${etaWords(eta, true)}`,
+    // The share read so far (the empty track at 0); the sliding segment is only for an unknown total.
+    pct: !s.total ? 100 : Math.min(100, 100 * s.scanned / s.total),
+    title: `${nf.format(s.scanned)} of ${nf.format(s.total)} Season ${year} games read${eta === null ? "" : `, ${etaWords(eta)} left`}. The numbers still grow.`,
+  };
+}
+// "~9 min" in the Champions tab label, "about 9 min" in tooltips.
+function etaWords(ms, short = false) {
+  if (ms < 60000) return short ? "<1 min" : "under a minute";
+  const n = ms < 5400000 ? `${Math.round(ms / 60000)} min` : `${Math.round(ms / 3600000)} h`;
+  return short ? `~${n}` : `about ${n}`;
+}
+// Time left from the pace of the last minute of polls (kept in s.pace as [time, scanned]);
+// null until three polls over at least 5 s have shown games being read.
+function seasonEta(s) {
+  const h = s.pace;
+  if (h.length < 3 || s.total === null) return null;
+  const [t0, n0] = h[0], [t1, n1] = h[h.length - 1];
+  const left = s.total - s.scanned;
+  if (t1 - t0 < 5000 || n1 <= n0 || left <= 0) return null;
+  return left * (t1 - t0) / (n1 - n0);
+}
+const syncBar = (info) => info
+  ? `<span class="syncbar js-bar${info.pct === null ? " ind" : ""}" aria-hidden="true"><i${info.pct === null ? "" : ` style="width:${info.pct.toFixed(1)}%"`}></i></span>` : "";
+
+function startSeason() {
+  const p = current;
+  season = {
+    rid: p._query || p.riot_id, region: p.region.key, ctrl: new AbortController(), timer: 0, seq: 0, busy: false, paused: false,
+    syncId: null, rows: [], ids: new Set(), offset: 0, status: "", year: 0, total: null, scanned: 0,
+    capped: false, maxGames: 0, queuePos: 0, error: "", pace: [], said: 0,
+  };
+  sayOut("");
+  pollSeason();
+}
+function scheduleSeason(ms) {
+  const s = season;
+  if (!s) return;
+  clearTimeout(s.timer);
+  s.timer = setTimeout(() => { if (season === s) { s.timer = 0; pollSeason(); } }, ms);
+}
+// Paused while another lookup runs (its answer may replace this player), dropped when it does.
+function pauseSeason() {
+  const s = season;
+  if (!s) return;
+  clearTimeout(s.timer);
+  s.timer = 0;
+  s.seq++;
+  s.ctrl.abort();
+  s.ctrl = new AbortController();
+  s.busy = false;
+}
+function dropSeason() { pauseSeason(); season = null; sayOut(""); }
+// poke: an Update or a Retry asks once more even after "done" or "error". Without it, a poll
+// in flight or already scheduled is left alone, so calling this again is harmless.
+function resumeSeason(poke = false) {
+  const s = season;
+  if (!s || s.busy) return;
+  if (s.timer && !poke) return;
+  if (s.status === "done" && !poke) return;
+  if (s.status === "error" && !poke) { if (!s.timer) scheduleSeason(SEASON_RETRY_MS); return; }
+  pollSeason();
+}
+function pauseExtras() {
+  if (more) { more.ctrl?.abort(); more.ctrl = null; more.busy = false; }
+  pauseSeason();
+}
+function resumeExtras() {
+  if (view === "summary") renderMore(pipeline());
+  resumeSeason();
+}
+
+async function pollSeason() {
+  const s = season;
+  if (!s || s.busy) return;
+  clearTimeout(s.timer);
+  s.timer = 0;
+  // Hidden tab: wait for visibilitychange instead of spending polls nobody sees.
+  if (document.hidden) { s.paused = true; return; }
+  s.paused = false;
+  s.busy = true;
+  const token = ++s.seq;
+  const url = `${API}/api/summoner/season?riot_id=${encodeURIComponent(s.rid)}&region=${encodeURIComponent(s.region)}&after=${s.offset}`;
+  let body = null, failed = "";
+  try {
+    const res = await fetch(url, { signal: s.ctrl.signal });
+    body = await res.json().catch(() => null);
+    if (!res.ok) failed = typeof body?.detail === "string" && body.detail.trim() ? body.detail : `The season lookup failed (${res.status}).`;
+    else if (!isObj(body) || !Array.isArray(body.rows)) failed = "The API answered with something this page cannot read.";
+  } catch (err) {
+    if (err.name === "AbortError") return;
+    failed = "Could not reach the Videns API.";
+  }
+  // A stale answer (another player, or a poll that was paused meanwhile) changes nothing.
+  if (season !== s || token !== s.seq) return;
+  s.busy = false;
+  const was = seasonSig(s), wasStatus = s.status, wasRows = s.rows.length;
+  if (failed) {
+    s.status = "error";
+    s.error = failed;
+    s.pace = [];
+    seasonChanged(was !== seasonSig(s));
+    announceSeason(s, wasStatus, wasRows);
+    scheduleSeason(SEASON_RETRY_MS);
+    return;
+  }
+  const offset = body.offset === undefined || body.offset === null ? s.offset : num(body.offset);
+  // A new server job (a restart, a new season) or fewer rows than the page holds: start over.
+  if ((s.syncId !== null && body.sync_id !== s.syncId) || offset !== s.offset) {
+    const had = s.rows.length;
+    s.rows = [];
+    s.ids = new Set();
+    s.offset = 0;
+    s.pace = [];
+    s.said = 0;
+    if (offset !== 0) {
+      s.syncId = body.sync_id ?? null;
+      if (had) seasonChanged(true);
+      scheduleSeason(0);
+      return;
+    }
+  }
+  s.syncId = body.sync_id ?? null;
+  let added = 0;
+  for (const r of body.rows) {
+    if (!isObj(r)) continue;
+    if (r.match_id) { if (s.ids.has(r.match_id)) continue; s.ids.add(r.match_id); }
+    s.rows.push(prep(r));
+    added++;
+  }
+  s.offset = offset + body.rows.length;
+  s.status = ["queued", "running", "done", "error"].includes(body.status) ? body.status : "done";
+  s.year = num(body.season) || s.year;
+  s.total = body.total === null || body.total === undefined ? null : num(body.total);
+  s.scanned = num(body.scanned);
+  s.capped = !!body.capped;
+  s.maxGames = num(body.max_games);
+  s.queuePos = num(body.queue_position);
+  s.error = s.status === "error" ? String(body.error || "The season sync failed.") : "";
+  // The pace of the last minute of polls feeds the time estimate.
+  if (s.status === "running" && s.total !== null) {
+    const now = Date.now();
+    s.pace.push([now, s.scanned]);
+    while (s.pace.length > 3 && s.pace[0][0] < now - 60000) s.pace.shift();
+  } else s.pace = [];
+  seasonChanged(added > 0 || was !== seasonSig(s));
+  announceSeason(s, wasStatus, wasRows);
+  if (s.status === "queued" || s.status === "running") scheduleSeason(SEASON_POLL_MS);
+  else if (s.status === "error") scheduleSeason(SEASON_RETRY_MS);
+}
+const seasonSig = (s) => `${s.status}|${s.capped}|${s.year}|${s.rows.length > 0}|${s.error}`;
+
+// Screen readers hear the sync's transitions only (queued, counting, first numbers in, quarter
+// milestones, ready, unavailable), never every poll; the visible label changes every 2.5 s.
+const sayOut = (msg) => { $("#season-status").textContent = msg; };
+function announceSeason(s, wasStatus, wasRows) {
+  if (season !== s) return;
+  const year = seasonYear();
+  const quarter = s.status === "running" && s.total ? Math.min(75, Math.floor(4 * s.scanned / s.total) * 25) : 0;
+  let msg = "";
+  if (s.status === "error") {
+    if (wasStatus !== "error") msg = "Season champion stats are unavailable right now. The champion stats show the loaded games.";
+  } else if (s.status === "done") {
+    if (wasStatus !== "done") {
+      msg = s.rows.length
+        ? `Season ${year} champion stats are ready: ${plural(s.rows.filter((r) => !r.remake).length, "game")}.`
+        : `No Season ${year} games found. The champion stats show the loaded games.`;
+    }
+  } else if (s.status === "queued") {
+    if (wasStatus !== "queued") msg = `Season ${year} champion stats are queued${s.queuePos ? `, position ${s.queuePos}` : ""}.`;
+  } else if (s.status === "running") {
+    if (!wasRows && s.rows.length) msg = `Champion stats now count Season ${year} games. Still counting.`;
+    else if (wasStatus !== "running") msg = `Counting Season ${year} games for the champion stats.`;
+    else if (quarter > s.said) msg = `Season ${year} count ${quarter}% done.`;
+  }
+  s.said = Math.max(s.said, quarter);
+  if (msg) sayOut(msg);
+}
+
+// A season poll repaints only what reads the season: the champion card on Summary or the
+// table on Champions, plus the queue tab counts. The match list and scoreboards stay put.
+// Without new rows or a new status, only the progress label and bar move. On the Champions
+// tab a poll's rebuild waits while the table is in use (see ctHold); force: a click asked.
+function seasonChanged(full, force = false) {
+  if (!current || !season || document.body.dataset.mode !== "results") return;
+  if (!full) { patchSync(); return; }
+  if (view === "champions" && !force && ctHeld()) { ctHold.pending = true; patchSync(); patchCtCounts(); ctRetry(); return; }
+  const pipe = pipeline(), spipe = seasonPipe();
+  renderQueueTabs(pipe, spipe);
+  if (view === "summary") { renderChampCard(pipe, spipe); renderNote(pipe); }
+  else { renderChampions(pipe, spipe, !force); fadeAll($("#view-champions")); }
+}
+function patchSync() {
+  const info = syncInfo();
+  if (!info) {
+    // The sync ended while the Champions table waited: no bar pretending it still runs.
+    for (const bar of document.querySelectorAll(".js-bar")) bar.remove();
+    for (const el of document.querySelectorAll(".js-sync,.js-sync-long")) { el.textContent = season?.status === "done" ? "Season read" : ""; el.removeAttribute("title"); }
+    return;
+  }
+  const queue = filt.queue === "all" ? "" : ` Showing ${queueLabel()} games.`;
+  for (const el of document.querySelectorAll(".js-sync")) { el.textContent = info.text; el.title = info.title + queue; }
+  for (const el of document.querySelectorAll(".js-sync-long")) { el.textContent = info.long; el.title = info.title; }
+  for (const bar of document.querySelectorAll(".js-bar")) {
+    bar.classList.toggle("ind", info.pct === null);
+    const i = bar.firstElementChild;
+    if (info.pct === null) i.style.removeProperty("width");
+    else i.style.width = `${info.pct.toFixed(1)}%`;
+  }
+}
+function retrySeason() {
+  const s = season;
+  if (!s) { if (current) startSeason(); return; }
+  if (s.busy) return;
+  s.status = "";
+  s.error = "";
+  seasonChanged(true, true);
+  resumeSeason(true);
+}
+document.addEventListener("visibilitychange", () => {
+  if (!document.hidden && season?.paused && document.body.dataset.mode === "results") pollSeason();
+});
+
+// A control rebuilt by a re-render: the selector that finds it again.
+function focusKey(root) {
+  const el = document.activeElement;
+  if (!el || el === root || !root.contains(el)) return null;
+  for (const a of ["data-src", "data-sort", "data-act", "data-view", "data-champ", "data-q"]) {
+    if (el.hasAttribute(a)) return `${el.tagName.toLowerCase()}[${a}="${CSS.escape(el.getAttribute(a))}"]`;
+  }
+  return null;
+}
+
+/* ---------- wiring ---------- */
+for (const f of [heroForm, navForm]) {
+  f.addEventListener("submit", (event) => {
+    event.preventDefault();
+    search(f.elements.q.value, f.elements.region.value);
+  });
+}
+// Debounced: each update redraws the panels, and a long loaded list makes that a real cost per keystroke.
+let champTimer = 0;
+champInput.addEventListener("input", () => {
+  clearTimeout(champTimer);
+  champTimer = setTimeout(() => { filt.champ = champInput.value; update(); }, 150);
+});
+// The Champions table is "in use" for a moment after any pointer, wheel, touch or key activity on it.
+{
+  const box = $("#ctable");
+  const use = () => { ctHold.at = Date.now(); };
+  for (const type of ["pointermove", "pointerdown", "wheel", "touchstart", "keydown", "focusin"]) box.addEventListener(type, use, { passive: true });
+}
+
+document.addEventListener("click", (event) => {
+  const el = event.target.closest("[data-riot],[data-exp],[data-q],[data-view],[data-sort],[data-champ],[data-src],[data-act],#update");
+  if (!el) return;
+  if (el.id === "update") {
+    search(current._query || current.riot_id, current.region.key, { push: false, refresh: true, refocus: document.activeElement === el });
+    return;
+  }
+  const d = el.dataset;
+  // Controls that re-render themselves hand keyboard focus to their natural successor.
+  const focusTo = (sel) => { if (document.activeElement === document.body || !el.isConnected || el.closest("[hidden]")) $(sel)?.focus({ preventScroll: true }); };
+  if (d.riot !== undefined) {
+    if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+    event.preventDefault();
+    search(d.riot, current.region.key);
+  } else if (d.exp !== undefined) {
+    const m = current.matches[Number(d.exp)];
+    const detail = document.getElementById(`md-${d.exp}`);
+    const opening = el.getAttribute("aria-expanded") !== "true";
+    if (opening && !detail.innerHTML.trim()) detail.innerHTML = scoreboard(m);
+    detail.hidden = !opening;
+    el.setAttribute("aria-expanded", String(opening));
+    const key = m.match_id || m._i;
+    if (opening) { openRows.add(key); fadeAll(detail); } else openRows.delete(key);
+  } else if (d.q !== undefined) {
+    filt.queue = d.q;
+    update();
+    focusTo(`#qtabs [data-q="${d.q}"]`);
+  } else if (d.view !== undefined) {
+    setView(d.view);
+    if (el.getAttribute("role") !== "tab") {
+      $(`#tab-${d.view}`).focus({ preventScroll: true });
+      scrollToTabs(true);
+    }
+  } else if (d.sort !== undefined) {
+    const col = COLS.find((c) => c.key === d.sort);
+    sortBy = sortBy.key === d.sort ? { key: d.sort, dir: -sortBy.dir } : { key: d.sort, dir: col.dir };
+    update();
+    document.querySelector(`[data-sort="${d.sort}"]`)?.focus();
+  } else if (d.champ !== undefined) {
+    clearTimeout(champTimer);
+    champInput.value = d.champ;
+    filt.champ = d.champ;
+    setView("summary");
+    $("#tab-summary").focus({ preventScroll: true });
+    scrollToTabs(false);
+  } else if (d.act === "clear-champ") {
+    clearTimeout(champTimer);
+    champInput.value = "";
+    filt.champ = "";
+    update();
+    // Keyboard activation (detail 0): the button is gone, so focus the field it cleared.
+    if (event.detail === 0) champInput.focus();
+  } else if (d.act === "back-champs") {
+    // Back to the table the champion was picked from, every champion listed again.
+    clearTimeout(champTimer);
+    champInput.value = "";
+    filt.champ = "";
+    setView("champions");
+    $("#tab-champions").focus({ preventScroll: true });
+    scrollToTabs(true);
+  } else if (d.act === "more") {
+    loadMore();
+  } else if (d.act === "season-retry") {
+    retrySeason();
+  } else if (d.src !== undefined) {
+    if (el.disabled) return;
+    champSrc = d.src;
+    update();
+    $(`#ctable [data-src="${d.src}"]`)?.focus({ preventScroll: true });
+  }
+});
+const reducedMotion = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
+// Bring the tab bar (and the queue bar under it) into view just below the sticky nav, whose
+// height changes with the breakpoint (the search field wraps under the links on phones).
+function scrollToTabs(smooth) {
+  const top = Math.max(0, $(".vtabs").getBoundingClientRect().top + window.scrollY - $(".nav").offsetHeight - 8);
+  // Only ever scroll up: when the tabs are already in view the page stays where it is.
+  if (window.scrollY > top) window.scrollTo({ top, behavior: smooth && !reducedMotion() ? "smooth" : "auto" });
+}
+// Arrow keys, Home and End move between the Summary / Champions tabs.
+$(".vtabs").addEventListener("keydown", (event) => {
+  const tabs = [...document.querySelectorAll(".vtabs [role=tab]")];
+  const at = tabs.indexOf(document.activeElement);
+  let next;
+  if (event.key === "ArrowRight") next = tabs[(at + 1) % tabs.length];
+  else if (event.key === "ArrowLeft") next = tabs[(at + tabs.length - 1) % tabs.length];
+  else if (event.key === "Home") next = tabs[0];
+  else if (event.key === "End") next = tabs[tabs.length - 1];
+  if (!next) return;
+  event.preventDefault();
+  next.focus();
+  setView(next.dataset.view);
+});
+// Scoreboard / table scrolling: keep the edge fade current, and scroll both team tables together
+// so the two teams stay column-aligned on a phone.
+document.addEventListener("scroll", (event) => {
+  const el = event.target;
+  if (!(el instanceof Element) || !el.matches(SCROLLERS)) return;
+  fade(el);
+  if (el.classList.contains("ctwrap")) ctHold.at = Date.now();
+  if (!el.classList.contains("sbx")) return;
+  for (const other of el.closest(".mdetail")?.querySelectorAll(".sbx") || []) {
+    if (other !== el && other.scrollLeft !== el.scrollLeft) other.scrollLeft = el.scrollLeft;
+  }
+}, { capture: true, passive: true });
+window.addEventListener("resize", () => fadeAll());
+
+window.addEventListener("popstate", () => fromUrl({ push: false }));
+setInterval(() => { const el = $("#updated-ago"); if (el && current) el.textContent = ago(current.compiled_at_ms); }, 15000);
+
+function fromUrl(opts) {
+  syncApiNote();
+  const now = new URLSearchParams(location.search);
+  const q = now.get("q");
+  const region = REGIONS.some(([k]) => k === now.get("region")) ? now.get("region") : "euw";
+  syncForms(q || "", region);
+  if (q) { search(q, region, opts); return; }
+  if (inFlight) inFlight.abort();
+  pauseExtras();
+  state.innerHTML = "";
+  setMode("landing");
+  document.title = "Search · Videns";
+}
+renderRecent();
+fromUrl({ push: false });
+</script>
+</body>
+</html>

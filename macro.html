@@ -4,237 +4,256 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex">
+<meta name="theme-color" content="#0a090e">
 <title>Revisión macro · Videns</title>
 <meta name="description" content="Revisión de decisiones de jungla challenger: minimapas, build y oro en cada decisión.">
 <link rel="preload" href="fonts/inter-var-latin.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="site.css">
+<link rel="icon" href="favicon.ico" sizes="32x32">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="manifest" href="site.webmanifest">
 <style>
-  @font-face{
-    font-family:"Inter";font-style:normal;font-weight:400 900;font-display:optional;
-    src:url("fonts/inter-var-latin.woff2") format("woff2");
-  }
+  /* Palette, font, header and footer come from site.css; these tokens are this page's own. */
   :root{
-    --bg:#06070a; --panel:rgba(20,23,30,.72); --panel2:#171b24; --line:rgba(255,255,255,.09);
-    --text:#f2f4f8; --muted:#939cae; --faint:#626b7d;
-    --accent:#e8c14a; --accent-2:#c9a227;
-    --blue:#5b8fc9; --red:#c9705b; --mint:#4fe1bc; --purple:#b48cf2; --orange:#f2a35c;
-    --ok:#5ec98a; --bad:#ef6b82; --meh:#e8c14a;
-    --font:"Inter",ui-sans-serif,-apple-system,"Segoe UI",system-ui,sans-serif;
-    --mono:ui-monospace,SFMono-Regular,Menlo,monospace;
+    --panel:var(--card); --panel2:var(--raised); --accent:var(--gold); --accent-2:var(--gold-2);
+    --mint:#4fe1bc; --purple:#b48cf2; --orange:#f2a35c;
+    --ok:#5ec98a; --bad:#ef6b82; --meh:var(--gold);
   }
   *{box-sizing:border-box}
   html{scrollbar-gutter:stable}
-  body{margin:0;background:var(--bg);color:var(--text);font:400 15px/1.55 var(--font);
-    -webkit-font-smoothing:antialiased}
+  body{font-size:14px;line-height:1.55}
   a{color:inherit}
   img{display:block}
   button{font:inherit;cursor:pointer}
-  .wrap{width:min(100% - 2.5rem,1340px);margin:0 auto}
 
-  /* ---------- nav ---------- */
-  .nav{position:sticky;top:0;z-index:40;background:rgba(6,7,10,.88);backdrop-filter:blur(14px);
-    border-bottom:1px solid var(--line)}
-  .nav .wrap{display:flex;align-items:center;gap:1.6rem;height:64px}
-  .logo{font-weight:800;font-size:1.15rem;letter-spacing:-.04em;text-decoration:none}
-  .logo i{color:var(--accent);font-style:normal}
-  .nav .bc{font-size:.875rem;color:var(--muted);text-decoration:none;font-weight:600}
-  .nav .bc:hover{color:var(--text)}
-  .nav .bc.cur{color:var(--text);border-bottom:2px solid var(--accent);padding:20px 0 18px}
-  .nav .tag{margin-left:auto;font-size:.6875rem;letter-spacing:.18em;text-transform:uppercase;color:var(--faint)}
-
-  main{padding:1.8rem 0 7rem}
-  .eyebrow{font-size:.6875rem;letter-spacing:.26em;text-transform:uppercase;color:var(--accent-2);margin:0 0 .8rem}
+  main{padding-block:1.8rem 2.5rem}
+  body:has(.dock:not(.hidden)) .foot{padding-bottom:calc(var(--dock-h,4rem) + 1.5rem)}
+  .eyebrow{font-size:.8125rem;font-weight:600;color:var(--muted);margin:0 0 .6rem}
   h1{margin:0;font-size:clamp(1.6rem,3.4vw,2.5rem);font-weight:800;letter-spacing:-.04em;line-height:1.05}
   .lead{margin:.8rem 0 0;color:var(--muted);max-width:60ch}
 
   /* ---------- índice ---------- */
   .figs{display:flex;gap:2.6rem;flex-wrap:wrap;margin:2rem 0 .4rem}
-  .fig b{display:block;font-size:2rem;font-weight:800;letter-spacing:-.04em;font-variant-numeric:tabular-nums;
-    background:linear-gradient(180deg,#f6dc80,var(--accent-2));-webkit-background-clip:text;background-clip:text;color:transparent}
+  .fig b{display:block;font-size:2rem;font-weight:800;letter-spacing:-.04em;color:var(--text)}
   .fig span{display:block;margin-top:.15rem;font-size:.78rem;color:var(--muted)}
   .player-h{display:flex;align-items:baseline;gap:.8rem;margin:2.6rem 0 1rem}
   .player-h h2{margin:0;font-size:1.35rem;font-weight:800;letter-spacing:-.03em}
   .player-h span{font-size:.8rem;color:var(--faint)}
   .games{display:grid;gap:.9rem;grid-template-columns:repeat(auto-fill,minmax(19rem,1fr))}
-  .gcard{display:flex;gap:.9rem;align-items:center;text-decoration:none;padding:.85rem .95rem;
-    border:1px solid var(--line);border-radius:13px;background:linear-gradient(165deg,var(--panel2),#0f1218);
-    transition:border-color .15s,transform .15s}
-  .gcard:hover{border-color:rgba(232,193,74,.5);transform:translateY(-2px)}
-  .gcard img{width:46px;height:46px;border-radius:10px;border:1px solid var(--line)}
+  .gcard{display:flex;gap:.9rem;align-items:center;text-decoration:none;padding:.9rem 1rem;border-radius:var(--r-md);background:var(--surface);transition:background-color .15s;box-shadow:var(--surface-shadow)}
+  .gcard:hover{background:var(--raised)}
+  .gcard img{width:46px;height:46px;border-radius:var(--r-md);border:1px solid var(--line)}
   .gcard .in{flex:1;min-width:0}
   .gcard b{display:block;font-size:.95rem;letter-spacing:-.01em}
-  .gcard small{display:block;font:500 .68rem/1.5 var(--mono);color:var(--faint);
+  .gcard small{display:block;font:500 .68rem/1.5 var(--font);color:var(--faint);
     white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .side{font-size:.62rem;font-weight:700;letter-spacing:.08em;padding:.14rem .45rem;border-radius:99px}
-  .side.b{color:#a8c8ec;background:rgba(91,143,201,.16);border:1px solid rgba(91,143,201,.35)}
-  .side.r{color:#eab4a8;background:rgba(201,112,91,.16);border:1px solid rgba(201,112,91,.35)}
-  .prog{margin-top:.45rem;height:4px;border-radius:99px;background:rgba(255,255,255,.07);overflow:hidden}
-  .prog div{height:100%;background:linear-gradient(90deg,#f6dc80,var(--accent-2))}
-  .gcard .n{font:600 .72rem/1.4 var(--mono);color:var(--muted);text-align:right;white-space:nowrap}
+  .side{font-size:.62rem;font-weight:700;letter-spacing:.08em;padding:.14rem .45rem;border-radius:999px}
+  .side.b{color:var(--blue-t);background:rgba(var(--blue-rgb),.16)}
+  .side.r{color:var(--red-t);background:rgba(var(--red-rgb),.16)}
+  .prog{margin-top:.45rem;height:4px;border-radius:999px;background:rgba(255,255,255,.07);overflow:hidden}
+  .prog div{height:100%;background:var(--fill)}
+  .gcard .n{font:600 .72rem/1.4 var(--font);color:var(--muted);text-align:right;white-space:nowrap}
   .gcard .n em{font-style:normal;color:var(--accent)}
 
   /* ---------- partida ---------- */
   .ghead{display:flex;align-items:center;gap:1rem;flex-wrap:wrap;margin-bottom:1rem}
-  .ghead img{width:52px;height:52px;border-radius:12px;border:1px solid var(--line)}
+  .ghead img{width:52px;height:52px;border-radius:var(--r-md);border:1px solid var(--line)}
   .ghead h1{font-size:clamp(1.3rem,2.6vw,1.9rem)}
-  .ghead .sub{font:500 .72rem/1.6 var(--mono);color:var(--faint)}
+  .ghead .sub{font:500 .72rem/1.6 var(--font);color:var(--faint)}
   .ghead .pos{margin-left:auto;text-align:right}
   .ghead .pos b{display:block;font-size:1.3rem;font-weight:800;font-variant-numeric:tabular-nums}
   .ghead .pos span{font-size:.7rem;color:var(--faint)}
 
   /* tira de decisiones */
-  .strip{display:flex;gap:2px;margin:0 0 1.2rem;padding:.55rem;border:1px solid var(--line);
-    border-radius:11px;background:rgba(0,0,0,.3);overflow-x:auto;scrollbar-width:thin}
+  .strip{display:flex;gap:2px;margin:0 0 1.2rem;padding:.55rem;border-radius:var(--r-md);background:var(--surface);overflow-x:auto;scrollbar-width:thin;box-shadow:var(--surface-shadow)}
   .strip button{flex:1 0 7px;min-width:7px;height:26px;padding:0;border:0;border-radius:3px;
     background:var(--c,#444);opacity:.45;position:relative}
   .strip button:hover{opacity:.85}
   .strip button.cur{opacity:1;outline:2px solid #fff;outline-offset:1px}
   .strip button.done{opacity:.9}
   .strip button.done::after{content:"";position:absolute;left:50%;bottom:-1px;transform:translateX(-50%);
-    width:4px;height:4px;border-radius:99px;background:#fff}
+    width:4px;height:4px;border-radius:999px;background:#fff}
 
   .cols{display:grid;gap:1.1rem;grid-template-columns:minmax(0,1fr)}
   @media(min-width:74rem){.cols{grid-template-columns:minmax(0,1fr) 25.5rem}}
-  .panel{border:1px solid var(--line);border-radius:14px;background:linear-gradient(165deg,rgba(23,27,36,.85),rgba(10,12,16,.9));
-    padding:1.1rem 1.2rem}
-  .panel h4{margin:0 0 .75rem;font:600 .625rem/1 var(--mono);letter-spacing:.16em;text-transform:uppercase;color:var(--faint)}
+  .panel{border-radius:var(--r-lg);background:var(--surface);padding:1.25rem 1.35rem;box-shadow:var(--surface-shadow)}
+  .panel h4{margin:0 0 .85rem;font:600 .8125rem/1.3 var(--font);color:var(--muted)}
 
   .tokbar{display:flex;align-items:center;gap:1.1rem;flex-wrap:wrap}
-  .tokbar time{font:700 1.5rem/1 var(--mono);font-variant-numeric:tabular-nums;color:var(--muted)}
+  .tokbar time{font:700 1.5rem/1 var(--font);font-variant-numeric:tabular-nums;color:var(--muted)}
   .tokbar .tk{font-size:clamp(1.2rem,2.2vw,1.7rem);font-weight:800;letter-spacing:-.02em}
   .tokbar .tk i{font-style:normal;color:var(--tc,var(--accent))}
   .tokbar code{font:600 .68rem/1 var(--mono);color:var(--faint);border:1px solid var(--line);
-    padding:.28rem .5rem;border-radius:7px;letter-spacing:.06em}
+    padding:.28rem .5rem;border-radius:var(--r-sm);letter-spacing:.06em}
   .tokbar .fam{width:10px;height:26px;border-radius:4px;background:var(--tc,var(--accent))}
 
   .maps{display:grid;gap:.8rem;grid-template-columns:repeat(auto-fit,minmax(14rem,1fr));margin-top:1rem}
   .maps figure{margin:0}
-  .maps img{width:100%;aspect-ratio:1;border-radius:10px;border:1px solid var(--line);cursor:zoom-in}
-  .maps .void{width:100%;aspect-ratio:1;border-radius:10px;border:1px dashed var(--line);
+  .maps img{width:100%;aspect-ratio:1;border-radius:var(--r-md);border:1px solid var(--line);cursor:zoom-in}
+  .maps .void{width:100%;aspect-ratio:1;border-radius:var(--r-md);border:1px dashed var(--line);
     display:grid;place-items:center;color:var(--faint);font-size:.8rem}
-  .maps figcaption{margin-top:.4rem;font:500 .68rem/1.4 var(--mono);color:var(--faint);text-align:center;letter-spacing:.05em}
+  .maps figcaption{margin-top:.4rem;font:500 .68rem/1.4 var(--font);color:var(--faint);text-align:center;letter-spacing:.05em}
   .maps figcaption b{color:var(--muted);font-weight:600}
 
   .visrow{display:flex;align-items:center;gap:.7rem;flex-wrap:wrap;margin-top:1.1rem;font-size:.85rem;color:var(--muted)}
-  .visrow .bar{width:150px;height:8px;border-radius:99px;background:rgba(255,255,255,.08);overflow:hidden}
-  .visrow .bar div{height:100%;background:linear-gradient(90deg,#f6dc80,var(--accent-2))}
+  .visrow .bar{width:150px;height:8px;border-radius:999px;background:rgba(255,255,255,.08);overflow:hidden}
+  .visrow .bar div{height:100%;background:var(--fill)}
   .visrow b{color:var(--text)}
   .visrow .nou{color:var(--bad);font-weight:600}
   .echips{display:flex;gap:.35rem;flex-wrap:wrap}
-  .echip{display:flex;align-items:center;gap:.35rem;font:500 .68rem/1 var(--mono);color:var(--muted);
-    border:1px solid var(--line);border-radius:99px;padding:.22rem .55rem .22rem .25rem;background:rgba(0,0,0,.25)}
-  .echip img{width:20px;height:20px;border-radius:99px}
+  .echip{display:flex;align-items:center;gap:.35rem;font:600 .75rem/1 var(--font);color:var(--muted);border-radius:999px;padding:.24rem .6rem .24rem .26rem;background:var(--raised)}
+  .echip img{width:20px;height:20px;border-radius:999px}
   .echip.unk{opacity:.55}.echip.dead img{filter:grayscale(1)}
   .echip.dead span{color:var(--bad)}
 
   .shop{display:flex;align-items:center;gap:.6rem;flex-wrap:wrap;margin-top:1.1rem}
-  .shop .lbl{font:600 .625rem/1.5 var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--faint)}
-  .buy{display:flex;align-items:center;gap:.55rem;border:1px solid rgba(232,193,74,.28);
-    background:rgba(232,193,74,.07);border-radius:10px;padding:.4rem .65rem .4rem .45rem}
-  .buy img{width:30px;height:30px;border-radius:7px;border:1px solid var(--line)}
+  .shop .lbl{font:600 .8125rem/1.5 var(--font);color:var(--muted)}
+  .buy{display:flex;align-items:center;gap:.55rem;background:var(--raised);border-radius:var(--r-sm);padding:.4rem .65rem .4rem .45rem}
+  .buy img{width:30px;height:30px;border-radius:var(--r-sm);border:1px solid var(--line)}
   .buy b{display:block;font-size:.8rem;line-height:1.2}
-  .buy span{display:block;font:600 .68rem/1.4 var(--mono)}
+  .buy span{display:block;font:600 .68rem/1.4 var(--font)}
   .buy span i{font-style:normal;color:var(--accent)}
   .buy span u{text-decoration:none;color:var(--orange)}
   .buy span s{text-decoration:none;color:var(--bad)}
   .buy small{font-size:.6rem;color:var(--faint)}
   .shop .none{font-size:.8rem;color:var(--faint)}
 
+  /* opciones de compra · modelo de referencia experimental (review-data/shop/, opcional) */
+  .sopt{margin-top:.9rem;border-radius:var(--r-md);padding:.95rem 1rem .9rem;background:var(--raised)}
+  .sopt-top{display:flex;align-items:center;gap:.45rem .7rem;flex-wrap:wrap}
+  .sopt-top .lbl{font:600 .8125rem/1.5 var(--font);color:var(--text)}
+  .xbadge{font:600 .75rem/1.35 var(--font);color:#d9c7f7;background:rgba(180,140,242,.14);border-radius:999px;padding:.2rem .6rem}
+  .sopt-sub{margin:.45rem 0 .6rem;font-size:.78rem;color:var(--muted);max-width:72ch}
+  .sopt-when{display:flex;align-items:center;gap:.35rem .5rem;flex-wrap:wrap;margin-bottom:.55rem;
+    font:500 .68rem/1.5 var(--font);color:var(--faint)}
+  .sopt-when b{color:var(--muted);font-weight:600}
+  .sopt-when .ico{display:inline-flex;gap:2px}
+  .sopt-when .ico img{width:20px;height:20px;border-radius:var(--r-sm);border:1px solid var(--line)}
+  .newp{font:700 .6875rem/1 var(--font);letter-spacing:.05em;text-transform:uppercase;color:var(--on-gold);background:var(--fill);border-radius:999px;padding:.22rem .45rem}
+  .opts{display:grid;gap:.4rem}
+  .opt{display:flex;align-items:center;gap:.45rem .7rem;flex-wrap:wrap;border-radius:var(--r-sm);padding:.5rem .65rem;background:var(--raised-2)}
+  .opt .tier{flex:0 0 8.4rem;font:600 .75rem/1.3 var(--font);color:var(--dim)}
+  .opt .oits{display:flex;gap:.45rem .8rem;flex-wrap:wrap;flex:1 1 13rem;min-width:0}
+  .oit{display:flex;align-items:center;gap:.45rem}
+  .oit img{width:28px;height:28px;border-radius:var(--r-sm);border:1px solid var(--line)}
+  .oit b{display:block;font-size:.78rem;line-height:1.2;font-weight:600}
+  .oit span{display:block;font:600 .64rem/1.35 var(--font);color:var(--muted)}
+  .opt .hold{flex:1 1 13rem;font-size:.78rem;color:var(--muted)}
+  .opt .otot{margin-left:auto;font:600 .66rem/1.3 var(--font);color:var(--faint);white-space:nowrap}
+  .opt.their{box-shadow:inset 3px 0 0 var(--mark)}
+  .opt .mine{margin-left:auto;font:700 .6875rem/1 var(--font);letter-spacing:.04em;text-transform:uppercase;color:var(--on-gold);background:var(--fill);border-radius:999px;padding:.28rem .55rem;white-space:nowrap}
+  .opt .otot+.mine{margin-left:0}
+  .sopt-miss{margin:.55rem 0 0;font-size:.78rem;color:var(--orange)}
+  .sopt-miss.sopt-ward{color:var(--muted)}
+  .sopt-note{margin:.45rem 0 0;font:500 .64rem/1.6 var(--font);color:var(--faint)}
+  .sopt-note b{color:var(--orange);font-weight:600}
+  .sopt-note kbd{font:600 .6rem/1 var(--font);color:var(--muted);border:1px solid var(--line);border-radius:4px;padding:.08rem .3rem}
+  .sopt-off{margin-top:.7rem;font-size:.78rem;color:var(--faint)}
+  .strip button.snotch::before{content:"";position:absolute;left:0;right:0;bottom:-6px;height:3px;border-radius:2px;background:var(--accent)}
+  .schip{font:600 .6875rem/1 var(--font);color:var(--muted);background:var(--raised);white-space:nowrap;border-radius:999px;padding:.18rem .45rem;vertical-align:1px}
+
   /* objetivos */
   .objs{display:flex;gap:.4rem;flex-wrap:wrap;margin-top:1rem}
-  .objs span{font:600 .66rem/1 var(--mono);letter-spacing:.05em;color:var(--muted);
-    border:1px solid var(--line);border-radius:7px;padding:.32rem .5rem;background:rgba(0,0,0,.25)}
+  .objs span{font:600 .75rem/1 var(--font);color:var(--muted);border-radius:var(--r-sm);padding:.36rem .55rem;background:var(--raised)}
   .objs span b{color:var(--blue)}.objs span i{font-style:normal;color:var(--red)}
   .objs span em{font-style:normal;color:var(--accent)}
 
   /* equipos */
   .team{margin-bottom:1rem}
-  .team h5{margin:0 0 .5rem;font:700 .68rem/1 var(--mono);letter-spacing:.14em;text-transform:uppercase}
-  .team.b h5{color:#a8c8ec}.team.r h5{color:#eab4a8}
+  .team h5{margin:0 0 .55rem;font:700 .875rem/1 var(--font)}
+  .team.b h5{color:var(--blue-t)}.team.r h5{color:var(--red-t)}
   .prow{display:grid;grid-template-columns:34px 1fr auto;gap:.6rem;align-items:center;
-    padding:.42rem .5rem;border-radius:10px;border:1px solid transparent}
+    padding:.42rem .5rem;border-radius:var(--r-md);border:1px solid transparent}
   .prow+.prow{margin-top:.15rem}
-  .prow.me{border-color:rgba(232,193,74,.45);background:rgba(232,193,74,.06)}
+  .prow.me{background:var(--raised);box-shadow:inset 3px 0 0 var(--mark)}
   .prow.dead{opacity:.55}
-  .prow>img{width:34px;height:34px;border-radius:8px;border:1px solid var(--line)}
+  .prow>img{width:34px;height:34px;border-radius:var(--r-md);border:1px solid var(--line)}
   .prow.dead>img{filter:grayscale(1)}
   .prow .id b{font-size:.82rem;display:inline}
-  .prow .id .lv{font:600 .62rem/1 var(--mono);color:var(--faint);margin-left:.3rem}
-  .prow .id .rl{font:600 .58rem/1 var(--mono);letter-spacing:.1em;color:var(--faint);margin-left:.3rem}
+  .prow .id .lv{font:600 .62rem/1 var(--font);color:var(--faint);margin-left:.3rem}
+  .prow .id .rl{font:600 .58rem/1 var(--font);letter-spacing:.1em;color:var(--faint);margin-left:.3rem}
   .prow .id small{display:block;font-size:.68rem;color:var(--muted);margin-top:.1rem}
   .prow .id small .saw{color:var(--orange)}
   .prow .id small .unk{color:var(--bad)}
   .prow .eco{text-align:right}
-  .prow .eco .g{font:600 .72rem/1.4 var(--mono);font-variant-numeric:tabular-nums;color:var(--accent)}
+  .prow .eco .g{font:600 .72rem/1.4 var(--font);font-variant-numeric:tabular-nums;color:var(--accent)}
   .prow .eco .g small{color:var(--faint);font-size:.62rem}
-  .goldnote{font-size:.66rem;color:var(--faint);margin:.2rem 0 0;font-family:var(--mono)}
+  .goldnote{font-size:.66rem;color:var(--faint);margin:.2rem 0 0;font-family:var(--font)}
 
   /* tabla de builds */
   .cols .wide{grid-column:1/-1}
   .tscroll{overflow-x:auto}
   .btable{width:100%;border-collapse:collapse;font-size:.84rem;min-width:44rem}
-  .btable th{font:600 .6rem/1 var(--mono);letter-spacing:.13em;text-transform:uppercase;color:var(--faint);
-    text-align:left;padding:.35rem .6rem;border-bottom:1px solid var(--line)}
+  .btable th{font:600 .75rem/1 var(--font);color:var(--dim);text-align:left;padding:.45rem .6rem;border-bottom:1px solid var(--line)}
   .btable th.r,.btable td.r{text-align:right}
   .btable td{padding:.42rem .6rem;border-bottom:1px solid rgba(255,255,255,.05);vertical-align:middle}
   .btable tr:last-child td{border-bottom:0}
-  .btable tr.me td{background:rgba(232,193,74,.06)}
-  .btable tr.me td:first-child{box-shadow:inset 3px 0 0 var(--accent)}
+  .btable tr.me td{background:var(--raised)}
+  .btable tr.me td:first-child{box-shadow:inset 3px 0 0 var(--mark)}
   .btable tr.tb td:first-child{box-shadow:inset 3px 0 0 var(--blue)}
   .btable tr.tr2 td:first-child{box-shadow:inset 3px 0 0 var(--red)}
-  .btable tr.me.tb td:first-child,.btable tr.me.tr2 td:first-child{box-shadow:inset 3px 0 0 var(--accent)}
+  .btable tr.me.tb td:first-child,.btable tr.me.tr2 td:first-child{box-shadow:inset 3px 0 0 var(--mark)}
   .btable tr.dead td{opacity:.5}
   .btable .ch{display:flex;align-items:center;gap:.55rem;white-space:nowrap}
-  .btable .ch img{width:30px;height:30px;border-radius:7px;border:1px solid var(--line)}
+  .btable .ch img{width:30px;height:30px;border-radius:var(--r-sm);border:1px solid var(--line)}
   .btable .ch b{font-size:.86rem}
-  .btable .rl{font:600 .62rem/1 var(--mono);letter-spacing:.1em;color:var(--faint)}
-  .btable .lv{font:600 .78rem/1 var(--mono);color:var(--muted)}
+  .btable .rl{font:600 .62rem/1 var(--font);letter-spacing:.1em;color:var(--faint)}
+  .btable .lv{font:600 .78rem/1 var(--font);color:var(--muted)}
   .slots{display:flex;gap:3px}
-  .slots span{width:28px;height:28px;border-radius:6px;border:1px dashed rgba(255,255,255,.12);background:rgba(0,0,0,.25)}
-  .slots img{width:28px;height:28px;border-radius:6px;border:1px solid rgba(255,255,255,.16)}
-  .btable .gi{font:600 .78rem/1 var(--mono);font-variant-numeric:tabular-nums;color:var(--muted)}
-  .btable .gh{font:600 .78rem/1 var(--mono);font-variant-numeric:tabular-nums;color:var(--accent)}
+  .slots span{width:28px;height:28px;border-radius:var(--r-sm);background:var(--raised)}
+  .slots img{width:28px;height:28px;border-radius:var(--r-sm);border:1px solid rgba(255,255,255,.16)}
+  .btable .gi{font:600 .78rem/1 var(--font);font-variant-numeric:tabular-nums;color:var(--muted)}
+  .btable .gh{font:600 .78rem/1 var(--font);font-variant-numeric:tabular-nums;color:var(--accent)}
   .btable .gh small{color:var(--faint);font-size:.64rem}
 
   /* veredicto */
   .dock{position:fixed;left:0;right:0;bottom:0;z-index:30;border-top:1px solid var(--line);
-    background:rgba(9,11,15,.92);backdrop-filter:blur(14px)}
-  .dock .wrap{display:flex;align-items:center;gap:.6rem;padding:.7rem 0;flex-wrap:wrap}
+    background:var(--bg)}
+  .dock .wrap{display:flex;align-items:center;gap:.6rem;padding-block:.7rem;flex-wrap:wrap}
   .dock .nav2{display:flex;gap:.35rem}
-  .dock button{background:var(--panel2);color:var(--text);border:1px solid var(--line);border-radius:9px;
-    padding:.55rem .9rem;font-weight:600;font-size:.85rem}
-  .dock button:hover{border-color:var(--accent)}
+  .dock button{background:var(--raised);color:var(--text);border:0;border-radius:var(--r-sm);padding:.6rem .95rem;font-weight:600;font-size:.85rem}
+  .dock button:hover{background:var(--raised-2)}
   .dock button.v{padding:.55rem 1.1rem}
   .dock button.v small{font-weight:600;color:var(--faint);margin-left:.35rem;font-size:.68rem}
   .dock button.v.ok.on{background:rgba(94,201,138,.18);border-color:var(--ok);color:#c9f0d8}
   .dock button.v.bad.on{background:rgba(239,107,130,.16);border-color:var(--bad);color:#f7ccd4}
-  .dock button.v.meh.on{background:rgba(232,193,74,.15);border-color:var(--meh);color:#f2e3ae}
-  .dock input{flex:1 1 12rem;min-width:8rem;background:var(--panel2);color:var(--text);
-    border:1px solid var(--line);border-radius:9px;padding:.55rem .75rem}
+  .dock button.v.meh.on{background:rgba(var(--gold-rgb),.15);border-color:var(--meh);color:#f2e3ae}
+  .dock input{flex:1 1 12rem;min-width:8rem;background:var(--sunk);color:var(--text);border:1px solid var(--line);border-radius:var(--r-sm);padding:.6rem .75rem}
   .dock .exp{margin-left:auto;color:var(--muted);font-size:.78rem}
   .dock .exp:hover{color:var(--accent)}
 
   /* lightbox */
   .lb{position:fixed;inset:0;z-index:50;background:rgba(4,5,8,.9);display:none;place-items:center;cursor:zoom-out}
   .lb.open{display:grid}
-  .lb img{width:min(86vmin,720px);border-radius:12px;border:1px solid var(--line);image-rendering:pixelated}
-  .lb figcaption{margin-top:.6rem;text-align:center;font:500 .75rem/1.5 var(--mono);color:var(--muted)}
+  .lb img{width:min(86vmin,720px);border-radius:var(--r-md);border:1px solid var(--line);image-rendering:pixelated}
+  .lb figcaption{margin-top:.6rem;text-align:center;font:500 .75rem/1.5 var(--font);color:var(--muted)}
 
   .hidden{display:none!important}
   .loading{padding:3rem 0;color:var(--faint)}
-  ::selection{background:rgba(232,193,74,.35)}
+  ::selection{background:rgba(var(--gold-rgb),.35)}
 </style>
 </head>
 <body>
 
-<nav class="nav"><div class="wrap">
-  <a class="logo" href="index.html">VIDENS<i>.</i></a>
-  <a class="bc cur" href="#/">Revisión macro</a>
-  <span class="tag">MVP interno</span>
-</div></nav>
+<header class="nav"><div class="wrap">
+  <a class="logo" href="index.html" aria-label="Videns home">VIDENS<i>.</i></a>
+  <nav class="links" aria-label="Primary">
+    <a class="bc" href="index.html">Home</a>
+    <a class="bc" href="search.html">Search</a>
+    <a class="bc cur" href="macro.html" aria-current="page">Review</a>
+  </nav>
+</div></header>
 
 <main class="wrap">
   <div id="view" class="loading">Cargando el corpus…</div>
 </main>
+
+<footer class="foot"><div class="wrap">
+  <a class="logo" href="index.html" aria-label="Videns home">VIDENS<i>.</i></a>
+  <nav aria-label="Footer"><a href="index.html">Home</a><a href="search.html">Search</a><a href="macro.html" aria-current="page">Review</a></nav>
+  <p>Videns is an independent project, not endorsed by or affiliated with Riot Games. League of Legends is a trademark of Riot Games, Inc.</p>
+</div></footer>
 
 <div class="dock hidden" id="dock"><div class="wrap">
   <div class="nav2">
@@ -273,6 +292,8 @@ let G = null, Gmid = null; // partida cargada
 let i = 0;                 // decisión actual
 let ITEMS = null;          // ddragon item.json (nombres)
 let FB = {};               // veredictos {mid|t0: {...}}
+let S = null;              // review-data/shop/<mid>.json · opciones del modelo de referencia (puede faltar)
+let SIX = null;            // review-data/shop/index.json (puede faltar: entonces la página queda como antes)
 try { FB = JSON.parse(localStorage.getItem(FBKEY) || '{}'); } catch (e) {}
 
 const mmss = t => { t = Math.round(t); return String(Math.floor(t/60)).padStart(2,'0') + ':' + String(t%60).padStart(2,'0'); };
@@ -316,7 +337,7 @@ function renderIndex() {
         + '<div class="in"><b>' + esc(g.champ) + ' <span class="side ' + (g.team === 100 ? 'b">azul' : 'r">rojo') + '</span></b>'
         + '<small>' + esc(g.mid) + ' · ' + mmss(g.dur) + ' · ' + esc(g.patch || '') + '</small>'
         + '<div class="prog"><div style="width:' + (100 * done / g.n).toFixed(0) + '%"></div></div></div>'
-        + '<div class="n"><em>' + done + '</em>/' + g.n + '<br>revisadas</div></a>';
+        + '<div class="n"><em>' + done + '</em>/' + g.n + '<br>revisadas' + shopChip(g.mid) + '</div></a>';
     }
     h += '</div>';
   }
@@ -327,22 +348,29 @@ function renderIndex() {
 async function loadGame(mid, k) {
   if (Gmid !== mid) {
     $('view').innerHTML = '<div class="loading">Cargando ' + esc(mid) + '…</div>';
+    const sp = settled(fetch('review-data/shop/' + encodeURIComponent(mid) + '.json').then(r => r.ok ? r.json() : null).catch(() => null));
     const r = await fetch('review-data/' + mid + '.json');
     if (!r.ok) { $('view').innerHTML = '<div class="loading">No existe ' + esc(mid) + '.</div>'; return; }
     G = await r.json();
+    S = sp.v || null;
     G.patch = (IDX.games.find(g => g.mid === mid) || {}).patch;
     Gmid = mid;
+    lateShop(sp, mid);
   }
   i = Math.min(Math.max(k || 0, 0), G.decisions.length - 1);
   renderDecision();
 }
 
 function stripHtml() {
+  const ns = newShopSet();
   return '<div class="strip" id="strip">' + G.decisions.map((d, k) => {
     const fb = fbGet(Gmid, d.t0);
     return '<button style="--c:' + famColor(d.token) + '" class="' + (k === i ? 'cur ' : '') + (fb ? 'done' : '')
+      + (ns.has(k) ? ' snotch' : '')
       + '" data-k="' + k + '" title="' + mmss(d.t0) + ' · ' + esc(IDX.display[d.token] || d.token)
-      + (fb ? ' · ' + fb.verdict : '') + '"></button>';
+      + (fb ? ' · ' + fb.verdict : '')
+      + (ns.has(k) ? ' · tienda (S)' : '')
+      + '"></button>';
   }).join('') + '</div>';
 }
 
@@ -368,6 +396,142 @@ function shopHtml(cmp) {
       return '<span class="buy">' + itemImg(b.item) + '<span><b>' + esc(itemName(b.item)) + '</b>'
         + '<span>con ' + oro + (b.verificado ? '' : ' <small>(acotado)</small>') + '</span></span></span>';
     }).join('') + '</div>';
+}
+
+/* ---------- opciones de compra · modelo de referencia experimental (opcional) ---------- */
+const TIER = { first_line: 'Primera línea', alternative: 'Alternativa', other_legal_line: 'Otra línea legal' };
+const TIER_POS = ['Primera línea', 'Alternativa', 'Otra línea legal'];
+const SHOP_UNAV = {
+  no_row_in_model_reconstruction: 'Opciones de compra no disponibles: las tiendas de esta partida se reconstruyeron con un método anterior.',
+  source_checks_failed: 'Opciones de compra no disponibles: la reconstrucción de tiendas de esta partida no pasó sus comprobaciones.',
+  row_count_mismatch: 'Opciones de compra no disponibles: la reconstrucción de tiendas de esta partida no pasó sus comprobaciones.',
+};
+const own = (o, k) => (typeof k === 'string' && Object.prototype.hasOwnProperty.call(o, k)) ? o[k] : null;
+const iid = x => String(parseInt(x, 10) || 0);
+const gnum = n => (n == null || !isFinite(n)) ? '?' : esc(Math.round(Number(n)).toLocaleString('es'));
+const itemIco = x => { const id = iid(x); return '<img src="' + DD(ddv() + '/img/item/' + id + '.png') + '" alt="' + esc(itemName(id))
+  + '" title="' + esc(itemName(id)) + '" loading="lazy" onerror="this.style.visibility=\'hidden\'">'; };
+const shopAdv = () => (S && S.advisor) || (SIX && SIX.advisor) || null;
+// los datos de tienda son opcionales: nunca retrasan la página. v queda undefined hasta que la petición se resuelve.
+function settled(p) { const o = { v: undefined, p: p }; p.then(x => { o.v = x; }); return o; }
+// si el fichero de tienda llega después que la partida, añadir la tarjeta sin tocar la nota a medio escribir
+function lateShop(sp, mid) {
+  if (sp.v !== undefined) return;
+  sp.p.then(x => {
+    // Gmid sigue siendo la partida anterior mientras se descarga la siguiente: mirar también la ruta
+    const enRuta = location.hash.replace(/^#\/?/, '').split('/')[0] === mid;
+    if (!x || Gmid !== mid || !G || !enRuta) return;
+    S = x;
+    const nv = $('note').value;
+    renderDecision();
+    $('note').value = nv;
+  });
+}
+// datos de tienda de la partida cargada, solo si hay modelo y la partida está disponible
+function shopData() {
+  if (!S || S.mid !== Gmid || !shopAdv() || S.status !== 'available' || !Array.isArray(S.shops)) return null;
+  return S;
+}
+// decisiones con una tienda nueva desde la decisión anterior (muesca en la tira + tecla S)
+function newShopSet() {
+  const Sd = shopData(), out = new Set();
+  if (!Sd || !G) return out;
+  G.decisions.forEach((d, k) => {
+    const lo = k ? G.decisions[k - 1].t0 : -Infinity;
+    if (Sd.shops.some(s => s.t > lo && s.t <= d.t0)) out.add(k);
+  });
+  return out;
+}
+const sameBatch = (s, c0) => !!(c0 && s && Array.isArray(s.bought_hud) && s.bought_hud.some(b => Math.abs(b.t - c0.t) < 0.05));
+// tienda del modelo vigente en la decisión: la última con t ≤ t0, o la que casa con el lote de «última tienda»
+function shopFor(d) {
+  const Sd = shopData();
+  let cur = null;
+  for (const s of Sd.shops) if (s.t <= d.t0 && (!cur || s.t >= cur.t)) cur = s;
+  const c0 = d.compras && d.compras[0];
+  const m = c0 ? (Sd.shops.find(s => sameBatch(s, c0)) || null) : null;
+  if (m && (!cur || m.t > cur.t)) cur = m;
+  const noRow = !!(c0 && !m && (!cur || cur.t < c0.t));
+  return { s: noRow ? null : cur, noRow, same: !!(cur && m === cur) };
+}
+
+function shopOptsHtml(d) {
+  if (!S || S.mid !== Gmid || !shopAdv()) return '';
+  if (S.status !== 'available')
+    return '<div class="sopt-off">' + esc(own(SHOP_UNAV, S.reason) || 'Opciones de compra no disponibles para esta partida.') + '</div>';
+  if (!shopData()) return '';
+  const f = shopFor(d);
+  if (f.noRow) return '<div class="sopt-off">Opciones de compra no disponibles: esta compra no tiene fila en la reconstrucción del modelo.</div>';
+  const s = f.s;
+  if (!s) return '';
+  const adv = shopAdv();
+  const prevT0 = i > 0 ? G.decisions[i - 1].t0 : -Infinity;
+  const held = Array.isArray(s.held) ? s.held : [];
+  const bought = s.bought || {};
+  const bItems = bought.items && typeof bought.items === 'object' ? bought.items : {};
+
+  let when = '<span>tienda de las <b>' + mmss(s.t) + '</b> · nivel ' + esc(s.level ?? '?') + ' · hace '
+    + esc(Math.round((d.t0 - s.t) * 10) / 10) + 's</span>'
+    + (s.t > prevT0 && s.t <= d.t0 ? '<span class="newp">nueva</span>' : '')
+    + '<span>· llevaba</span>' + (held.length ? '<span class="ico">' + held.map(itemIco).join('') + '</span>' : '<span>nada</span>');
+  if (!f.same) {  // otra visita que la de «última tienda»: decir qué compró en ella
+    if (Array.isArray(s.bought_hud) && s.bought_hud.length)
+      when += '<span>· compró</span><span class="ico">' + s.bought_hud.map(b => itemIco(b.item)).join('') + '</span>';
+    else if (bought.kind === 'save') when += '<span>· no compró nada en esta visita</span>';
+    else if (Object.keys(bItems).length)
+      when += '<span>· compró</span><span class="ico">' + Object.keys(bItems).map(itemIco).join('') + '</span>';
+  }
+
+  let body;
+  if (s.options_status !== 'ok' || !Array.isArray(s.options) || !s.options.length) {
+    body = '<div class="sopt-off">No se pudieron calcular opciones para esta tienda.</div>';
+  } else {
+    body = '<div class="opts">' + s.options.map((o, j) => {
+      const their = s.their_option === j;
+      const its = Array.isArray(o.items) ? o.items : [];
+      const inner = o.kind === 'save'
+        ? '<span class="hold">Guardar oro · sin compra principal en esta visita</span>'
+        : '<span class="oits">' + its.map(it => '<span class="oit">' + itemIco(it.item_id) + '<span><b>' + esc(itemName(iid(it.item_id)))
+            + '</b><span>' + gnum(it.cost) + ' oro</span></span></span>').join('') + '</span>'
+          + (its.length > 1 && o.total != null ? '<span class="otot">' + gnum(o.total) + ' oro en total</span>' : '');
+      return '<div class="opt' + (their ? ' their' : '') + '"><span class="tier">' + esc(own(TIER, o.tier) || TIER_POS[j] || '') + '</span>'
+        + inner + (their ? '<span class="mine">su compra</span>' : '') + '</div>';
+    }).join('') + '</div>';
+    const wards = ((adv && adv.wards_excluded) || [2055, 772043]).map(Number);
+    const ks = Object.keys(bItems);
+    const wardOnly = s.their_option_note === 'ward_only' || (bought.kind === 'buy' && ks.length && ks.every(x => wards.includes(+x)));
+    if (s.their_option != null && wardOnly)
+      body += '<p class="sopt-miss sopt-ward">Solo compró guardianes de control, que nunca son opciones: para el modelo cuenta como sin compra principal.</p>';
+    if (s.their_option == null) {
+      body += '<p class="sopt-miss">' + (wardOnly ? 'Solo compró guardianes de control, que nunca son opciones.'
+        : bought.kind === 'save' ? 'No compró nada, y guardar oro no está entre estas opciones.'
+        : 'Su compra no está entre estas opciones.') + '</p>';
+    }
+  }
+
+  const w = s.wallet || {};
+  const hud = w.hud_gold != null ? ' (el HUD marcaba ' + gnum(w.hud_gold) + (w.hud_verified === false ? ', acotado' : '') + ')'
+    : Array.isArray(w.hud_interval) ? ' (el HUD marcaba entre ' + gnum(w.hud_interval[0]) + ' y ' + gnum(w.hud_interval[1]) + ')'
+    : ' (sin lectura del HUD para esta tienda)';
+  const note = 'Opciones comprobadas contra un oro estimado' + (w.model_gold != null ? ' de ' + gnum(w.model_gold) : '')
+    + ' reconstruido desde Match-V5' + hud + '.'
+    + (s.bought_fits_model_wallet === false ? ' <b>Su compra costaba más que ese oro estimado.</b>' : '')
+    + ' Guardianes de control, consumibles y abalorios nunca son opciones.'
+    + (S.in_model_training_data === true ? ' Esta partida forma parte de los datos de entrenamiento del modelo.' : '')
+    + ' <kbd>S</kbd> siguiente tienda.';
+
+  return '<div class="sopt"><div class="sopt-top"><span class="lbl">Opciones históricas de alto elo para esta compra</span>'
+    + (adv && adv.served === false ? '<span class="xbadge" title="' + esc((adv.id || '') + ' · precalculado offline · sin probabilidades ni puntuaciones')
+      + '">Modelo de referencia experimental · no es el asesor en vivo</span>' : '') + '</div>'
+    + '<p class="sopt-sub">Lo que solían comprar jugadores de alto elo en estados reconstruidos parecidos. Imita; no dice qué era lo mejor.</p>'
+    + '<div class="sopt-when">' + when + '</div>' + body + '<p class="sopt-note">' + note + '</p></div>';
+}
+
+function shopChip(mid) {
+  const e = SIX && SIX.advisor && SIX.games && SIX.games[mid];
+  if (!e || e.status !== 'available') return '';
+  return '<br><span class="schip" title="' + esc('Opciones históricas de un modelo de referencia experimental en ' + (e.shops ?? '?') + ' tiendas'
+    + (e.in_model_training_data ? ' · partida dentro de sus datos de entrenamiento' : '')) + '">opciones</span>';
 }
 
 function objsHtml(o) {
@@ -462,7 +626,7 @@ function renderDecision() {
     +     '<div class="tokbar"><span class="fam"></span><time>' + mmss(d.t0) + '–' + mmss(d.t1) + '</time>'
     +     '<span class="tk">decidió <i>' + esc(disp) + '</i></span><code>' + esc(d.token) + '</code></div>'
     +     '<div class="maps">' + maps + '</div>'
-    +     visionHtml(d.vision) + shopHtml(d.compras) + objsHtml(d.objectives)
+    +     visionHtml(d.vision) + shopHtml(d.compras) + shopOptsHtml(d) + objsHtml(d.objectives)
     +   '</div>'
     + '</div><div>'
     +   '<div class="panel"><h4>Posición y conocimiento · en el instante de decidir</h4>' + teamsHtml(d) + '</div>'
@@ -478,9 +642,9 @@ function renderDecision() {
     img.addEventListener('click', () => openLb(img.src, img.dataset.cap));
 
   const fb = fbGet(Gmid, d.t0);
-  $('vAgree').classList.toggle('on', fb && fb.verdict === 'agree');
-  $('vDis').classList.toggle('on', fb && fb.verdict === 'disagree');
-  $('vUnc').classList.toggle('on', fb && fb.verdict === 'unclear');
+  $('vAgree').classList.toggle('on', !!(fb && fb.verdict === 'agree'));
+  $('vDis').classList.toggle('on', !!(fb && fb.verdict === 'disagree'));
+  $('vUnc').classList.toggle('on', !!(fb && fb.verdict === 'unclear'));
   $('note').value = (fb && fb.note) || '';
   $('dock').classList.remove('hidden');
 
@@ -541,6 +705,8 @@ $('vUnc').onclick = () => verdict('unclear');
 $('bExport').onclick = e => { e.preventDefault(); exportFb(); };
 $('note').addEventListener('keydown', e => { if (e.key === 'Enter') { saveNote(); e.target.blur(); } });
 $('note').addEventListener('change', saveNote);
+// El pie deja sitio al dock fijo, que crece al partirse en varias filas en pantallas estrechas.
+new ResizeObserver(([e]) => document.body.style.setProperty('--dock-h', e.target.offsetHeight + 'px')).observe($('dock'));
 
 document.addEventListener('keydown', e => {
   if (e.target.tagName === 'INPUT' || !G) {
@@ -553,11 +719,16 @@ document.addEventListener('keydown', e => {
   else if (e.key === 'x' || e.key === 'X') verdict('disagree');
   else if (e.key === 'd' || e.key === 'D') verdict('unclear');
   else if (e.key === 'n' || e.key === 'N') { e.preventDefault(); $('note').focus(); }
+  else if ((e.key === 's' || e.key === 'S') && !e.ctrlKey && !e.metaKey && !e.altKey) {
+    const nx = [...newShopSet()].find(k => k > i);
+    if (nx !== undefined) go(nx);
+  }
   else if (e.key === 'Escape') $('lb').classList.remove('open');
 });
 
 /* ---------- arranque ---------- */
 (async () => {
+  const six = settled(fetch('review-data/shop/index.json').then(r => r.ok ? r.json() : null).catch(() => null));
   try {
     const r = await fetch('review-data/games.json');
     IDX = await r.json();
@@ -565,7 +736,12 @@ document.addEventListener('keydown', e => {
     $('view').innerHTML = '<div class="loading">No se pudo cargar review-data/games.json — ¿está exportado el corpus?</div>';
     return;
   }
+  SIX = six.v || null;
   route();
+  if (six.v === undefined) six.p.then(x => {  // llegó tarde: solo el índice lo usa (chips)
+    SIX = x;
+    if (x && !location.hash.replace(/^#\/?/, '').split('/').filter(Boolean).length) renderIndex();
+  });
   // nombres de item en español, para tooltips y la tienda; si falla, ids
   try {
     const r = await fetch(DD(ddv() + '/data/es_ES/item.json'));

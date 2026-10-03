@@ -3,428 +3,514 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Videns · League without Limits</title>
-<meta name="description" content="A post-game AI coach for League of Legends. It reads your match back — the buys, the map, the calls.">
+<title>Videns · See the whole game</title>
+<meta name="description" content="Look up any Riot ID in 17 regions, review challenger jungle games call by call, and see what high-elo players bought at the shop.">
 <meta name="robots" content="noindex">
-<meta name="theme-color" content="#06070a">
-<meta property="og:title" content="Videns · League without Limits">
-<meta property="og:description" content="A post-game AI coach for League of Legends. It reads your match back — the buys, the map, the calls.">
+<meta name="theme-color" content="#0a090e">
+<meta property="og:title" content="Videns · See the whole game">
+<meta property="og:description" content="Look up any Riot ID in 17 regions, review challenger jungle games call by call, and see what high-elo players bought at the shop.">
 <meta property="og:type" content="website">
 <meta property="og:locale" content="en">
-<link rel="preconnect" href="https://ddragon.leagueoflegends.com" crossorigin>
+<link rel="preconnect" href="https://ddragon.leagueoflegends.com">
 <link rel="preload" href="fonts/inter-var-latin.woff2" as="font" type="font/woff2" crossorigin>
-<style>
-  /* Self-hosted so the face is available at first paint. Google Fonts needed a
-     second round trip, so the page painted in the fallback and then re-rendered
-     in Inter — that swap was the blink. `optional` means the browser never
-     performs that swap: it either has the font in time or stays on fallback. */
-  @font-face{
-    font-family:"Inter";
-    font-style:normal;
-    font-weight:400 900;
-    font-display:optional;
-    src:url("fonts/inter-var-latin.woff2") format("woff2");
-    unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,
-      U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD;
-  }
-  :root{
-    --bg:#06070a; --panel:rgba(20,23,30,.72); --line:rgba(255,255,255,.09);
-    --text:#f2f4f8; --muted:#939cae; --faint:#626b7d;
-    --accent:#e8c14a; --accent-2:#c9a227;
-    --blue:#5b8fc9; --red:#c9705b;
-    --font:"Inter",ui-sans-serif,-apple-system,"Segoe UI",system-ui,sans-serif;
-    --mono:ui-monospace,SFMono-Regular,Menlo,monospace;
-    --ease:cubic-bezier(.22,.61,.36,1);
-  }
-  *{box-sizing:border-box}
-  html{scroll-behavior:smooth;scrollbar-gutter:stable}
-  body{margin:0;background:var(--bg);color:var(--text);font:400 16px/1.6 var(--font);
-    -webkit-font-smoothing:antialiased;overflow-x:hidden}
-  img{max-width:100%;display:block}
-  .wrap{width:100%;max-width:78rem;margin:0 auto;padding:0 2rem}
-  @media(max-width:40rem){.wrap{padding:0 1.25rem}}
-
-  /* ---------- nav ---------- */
-  .nav{position:fixed;top:0;left:0;right:0;z-index:60;transition:background .3s,border-color .3s}
-  .nav.stuck{background:rgba(6,7,10,.86);backdrop-filter:blur(14px);border-bottom:1px solid var(--line)}
-  .nav .wrap{display:flex;align-items:center;height:72px}
-  .logo{font-weight:800;font-size:1.1875rem;letter-spacing:-.04em;color:var(--text);text-decoration:none}
-  .logo i{color:var(--accent);font-style:normal}
-  .tag{margin-left:auto;font-size:.75rem;letter-spacing:.18em;text-transform:uppercase;color:var(--faint)}
-
-  /* ---------- hero ---------- */
-  .hero{position:relative;min-height:100svh;display:grid;align-items:center;overflow:hidden;isolation:isolate}
-  @media(min-width:62rem){
-    .hero{perspective:1150px;perspective-origin:50% 42%}
-    /* the slogan is no longer flat — it rides nearest the viewer */
-    .hero .wrap{transform:translateZ(60px)}
-  }
-  .bg{position:absolute;inset:0;z-index:-3;background:
-    radial-gradient(ellipse 70% 55% at 50% 15%,rgba(232,193,74,.16),transparent 65%),
-    radial-gradient(ellipse 90% 70% at 85% 95%,rgba(38,58,110,.38),transparent 70%),
-    radial-gradient(ellipse 70% 60% at 10% 80%,rgba(120,40,60,.18),transparent 70%),
-    linear-gradient(180deg,#0b0d13,#06070a 70%)}
-  .bg video{width:100%;height:100%;object-fit:cover}
-  .vig{position:absolute;inset:0;z-index:-2;pointer-events:none;background:
-    radial-gradient(ellipse 75% 65% at 50% 45%,transparent,rgba(6,7,10,.82) 100%),
-    linear-gradient(180deg,rgba(6,7,10,.8),transparent 30%,rgba(6,7,10,.95))}
-
-  .hero .wrap{position:relative;z-index:2;padding-top:6rem;padding-bottom:4rem;text-align:center}
-
-  h1{margin:0;font-weight:900;line-height:.98;letter-spacing:-.05em;
-    font-size:clamp(1.4rem,6.6vw,5.25rem);white-space:nowrap}
-  h1 em{font-style:normal;background:linear-gradient(180deg,#f6dc80,var(--accent-2));
-    -webkit-background-clip:text;background-clip:text;color:transparent;
-    filter:drop-shadow(0 0 28px rgba(232,193,74,.28))}
-  .sub{margin:1.4rem auto 0;max-width:32rem;color:var(--muted);font-size:clamp(1rem,1.7vw,1.25rem)}
-
-  .cta{margin:2.25rem 0 0;display:flex;flex-direction:column;align-items:center;gap:.85rem}
-  .dl{display:inline-flex;align-items:center;gap:.65rem;border:0;cursor:pointer;
-    padding:1rem 2.1rem;border-radius:12px;font:600 1.0625rem/1 var(--font);color:#18130a;
-    background:linear-gradient(180deg,#f0cf5e,var(--accent-2));
-    box-shadow:0 10px 34px -10px rgba(232,193,74,.6),inset 0 1px 0 rgba(255,255,255,.4);
-    transition:transform .18s var(--ease),box-shadow .18s var(--ease)}
-  .dl:hover{transform:translateY(-2px);box-shadow:0 16px 44px -12px rgba(232,193,74,.75),inset 0 1px 0 rgba(255,255,255,.5)}
-  .dl svg{width:18px;height:18px}
-  .cta small{font-size:.75rem;color:var(--faint);letter-spacing:.06em}
-
-  /* ---------- the cards around the title ---------- */
-  .card{
-    position:absolute;z-index:1;width:17.5rem;text-align:left;
-    background:linear-gradient(165deg,#171b24,#0f1218);
-    border:2px solid rgba(255,255,255,.17);border-radius:12px;overflow:hidden;
-    box-shadow:0 30px 70px -28px rgba(0,0,0,.95);
-    opacity:0;animation:cardIn .9s var(--ease) forwards;
-  }
-  @keyframes cardIn{
-    from{opacity:0;transform:rotateY(var(--ry,0deg)) rotateX(var(--rx,0deg)) rotateZ(var(--rot,0deg)) translateZ(var(--tz,0px)) translateY(24px) scale(.96)}
-    to{opacity:1;transform:rotateY(var(--ry,0deg)) rotateX(var(--rx,0deg)) rotateZ(var(--rot,0deg)) translateZ(var(--tz,0px))}
-  }
-
-  .card h4{margin:0;display:flex;justify-content:space-between;align-items:center;gap:.6rem;
-    padding:.8rem 1rem;border-bottom:1px solid var(--line);background:rgba(0,0,0,.3);
-    font:600 .6875rem/1 var(--mono);letter-spacing:.1em;color:var(--faint);white-space:nowrap}
-  .card h4 b{font-weight:600}
-  .card h4 b.g{color:var(--accent)}
-  .card h4 b.m{color:var(--blue)}
-  .card .foot{margin:0;padding:.7rem 1rem .8rem;border-top:1px solid var(--line);
-    font-size:.75rem;color:var(--faint)}
-
-  /* build call — items with their share */
-  .items{list-style:none;margin:0;padding:.45rem .5rem}
-  .items li{position:relative;display:flex;align-items:center;gap:.7rem;padding:.5rem .6rem;border-radius:8px}
-  .items .bar{position:absolute;inset:0 auto 0 0;border-radius:8px;
-    background:linear-gradient(90deg,rgba(232,193,74,.2),rgba(232,193,74,.02))}
-  .items li>*{position:relative}
-  .items img{width:36px;height:36px;border-radius:7px;border:1px solid var(--line)}
-  .items .nm{flex:1;font-size:.9375rem;font-weight:500}
-  .items .pc{font:700 .875rem/1 var(--mono);color:var(--accent);font-variant-numeric:tabular-nums}
-
-  /* macro call — the move, in words */
-  .call{padding:1rem 1rem 1.1rem;display:flex;gap:.9rem;align-items:flex-start}
-  .call .ic{width:38px;height:38px;border-radius:9px;flex:none;display:grid;place-items:center;
-    border:1px solid rgba(91,143,201,.35);background:rgba(91,143,201,.12)}
-  .call .ic svg{width:19px;height:19px;color:var(--blue)}
-  .call.warn .ic{border-color:rgba(232,193,74,.35);background:rgba(232,193,74,.12)}
-  .call.warn .ic svg{color:var(--accent)}
-  .call b{display:block;font-size:1.0625rem;font-weight:600;letter-spacing:-.01em}
-  .call span{display:block;font-size:.9375rem;color:var(--muted);margin-top:.15rem}
-  .call .who{display:flex;align-items:center;gap:.4rem;margin-top:.55rem}
-  .call .who img{width:26px;height:26px;border-radius:5px;border:1px solid var(--line)}
-  .call .who em{font-style:normal;font:600 .75rem/1 var(--mono);color:var(--faint);letter-spacing:.08em}
-
-  /* state strip: the card shows what it is conditioned on, not just the answer */
-  .state{display:flex;align-items:center;gap:.6rem;padding:.6rem .9rem;border-bottom:1px solid var(--line);
-    background:rgba(255,255,255,.02)}
-  .state .lbl{font:600 .625rem/1 var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--faint);flex:none}
-  .state .chips{display:flex;gap:.25rem}
-  .state img{width:26px;height:26px;border-radius:6px;border:1px solid var(--line)}
-
-  /* Placement: mobile stacks them under the title; from 62rem they float in the
-     hero corners, inset from the edge but still framing the slogan. */
-  .cards{display:grid;gap:1rem;margin:3rem auto 0;max-width:46rem;padding:0 1.25rem}
-  @media(min-width:34rem){.cards{grid-template-columns:1fr 1fr}}
-  .card{position:static;width:100%;margin:0;transform:none}
-
-  @media(min-width:62rem){
-    .cards{position:absolute;inset:0;display:block;margin:0;max-width:none;padding:0;pointer-events:none}
-    .cards .card{position:absolute;width:17.5rem;pointer-events:auto}
-    .cards .card{width:clamp(16rem,17.5vw,20.5rem)}
-    /* One scene: the perspective lives on .hero, so the slogan and the cards
-       share a vanishing point instead of sitting in separate 3D contexts.
-       The title rides forward; the cards sit behind it and turn their outer
-       edge toward the viewer, so every face aims back at the headline. */
-    .cards{transform-style:preserve-3d}
-    .c1{top:11%;left:max(1.5rem,calc(50% - 47rem));--rot:-1.5deg;--ry:18deg;--rx:-5deg;--tz:-70px;animation-delay:.3s}
-    .c2{top:20%;right:max(1.5rem,calc(50% - 48rem));--rot:1.2deg;--ry:-18deg;--rx:-5deg;--tz:-70px;animation-delay:.45s}
-    .c3{bottom:11%;left:max(2rem,calc(50% - 41rem));--rot:1deg;--ry:16deg;--rx:4deg;--tz:-25px;animation-delay:.6s}
-    .c4{bottom:19%;right:max(2rem,calc(50% - 43rem));--rot:-1.3deg;--ry:-16deg;--rx:4deg;--tz:-25px;animation-delay:.75s}
-    .card{transform:rotateY(var(--ry,0deg)) rotateX(var(--rx,0deg)) rotateZ(var(--rot,0deg)) translateZ(var(--tz,0px))}
-  }
-
-
-  /* ---------- sections ---------- */
-  section{padding:clamp(4.5rem,10vw,8rem) 0}
-  .eyebrow{font-size:.6875rem;letter-spacing:.26em;text-transform:uppercase;color:var(--accent-2);margin:0 0 1.1rem}
-  h2{margin:0;font-size:clamp(1.9rem,4.4vw,3rem);font-weight:800;letter-spacing:-.04em;line-height:1.06;max-width:22ch}
-  .lead{margin:1.2rem 0 0;color:var(--muted);max-width:46ch;font-size:1.0625rem}
-
-  .split{display:grid;gap:1.5rem;margin-top:3.25rem}
-  @media(min-width:58rem){.split{grid-template-columns:1fr 1fr}}
-  .pane{border:1px solid var(--line);border-radius:18px;padding:1.75rem;position:relative;overflow:hidden;
-    background:linear-gradient(165deg,rgba(24,28,36,.9),rgba(10,12,16,.9))}
-  .pane::before{content:"";position:absolute;inset:0;
-    background:radial-gradient(ellipse 60% 50% at 20% 0%,rgba(232,193,74,.1),transparent 70%)}
-  .pane>*{position:relative}
-  .pane h3{margin:0 0 .45rem;font-size:1.25rem;font-weight:700;letter-spacing:-.02em}
-  .pane h3 i{font-style:normal;color:var(--accent)}
-  .pane>p{margin:0 0 1.4rem;color:var(--muted);font-size:.9375rem}
-
-  .rec{border:1px solid var(--line);border-radius:12px;background:rgba(0,0,0,.35);overflow:hidden}
-  .rec h5{margin:0;display:flex;justify-content:space-between;padding:.6rem .85rem;border-bottom:1px solid var(--line);
-    font:600 .5625rem/1 var(--mono);letter-spacing:.12em;color:var(--faint)}
-  .rec .in{padding:.95rem 1rem}
-  .who2{display:flex;gap:.5rem;align-items:baseline;margin-bottom:.85rem}
-  .who2 b{font-size:.9375rem}.who2 span{font-size:.75rem;color:var(--muted)}
-  .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:.4rem;padding:.7rem 0;margin-bottom:.9rem;
-    border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
-  .stats b{display:block;font-size:.9375rem;font-weight:700;font-variant-numeric:tabular-nums}
-  .stats b.g{color:var(--accent)}
-  .stats span{display:block;font-size:.5625rem;letter-spacing:.12em;text-transform:uppercase;color:var(--faint);margin-top:.1rem}
-  .mini{font-size:.5625rem;letter-spacing:.16em;text-transform:uppercase;color:var(--muted);margin:0 0 .5rem;font-weight:600}
-  .row{display:flex;gap:.4rem;margin-bottom:.9rem}
-  .row img{width:32px;height:32px;border-radius:6px;border:1px solid var(--line)}
-  .buy{display:flex;gap:.7rem;align-items:center;background:rgba(232,193,74,.08);
-    border:1px solid rgba(232,193,74,.28);border-radius:10px;padding:.6rem .7rem}
-  .buy img{width:36px;height:36px;border-radius:6px}
-  .buy b{display:block;font-size:.875rem}
-  .buy span{display:block;font-size:.75rem;color:var(--muted)}
-  .buy span i{font-style:normal;color:var(--accent);font-weight:600}
-
-  .tl{list-style:none;margin:0;padding:0}
-  .tl li{display:flex;align-items:center;gap:1rem;padding:.6rem 0;border-bottom:1px solid rgba(255,255,255,.05);position:relative}
-  .tl li:last-child{border:0}
-  .tl time{font:600 .75rem/1 var(--mono);color:var(--faint);width:2.8rem;font-variant-numeric:tabular-nums}
-  .tl b{font-size:.75rem;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);font-weight:600}
-  .tl li.k b{color:var(--accent)}
-  .tl li.k::before{content:"";position:absolute;left:-1rem;top:.55rem;bottom:.55rem;width:2px;background:var(--accent);border-radius:2px}
-
-  .figs{display:grid;gap:3rem 2rem;margin-top:3rem}
-  @media(min-width:44rem){.figs{grid-template-columns:1fr 1fr}}
-  @media(min-width:64rem){.figs{grid-template-columns:repeat(4,1fr)}}
-  .fig b{display:block;font-size:clamp(2.2rem,5vw,3.25rem);font-weight:800;letter-spacing:-.05em;
-    font-variant-numeric:tabular-nums;line-height:1;
-    background:linear-gradient(180deg,#f6dc80,var(--accent-2));-webkit-background-clip:text;background-clip:text;color:transparent}
-  .fig span{display:block;margin-top:.7rem;font-size:.8125rem;color:var(--muted);max-width:18ch}
-  .foot-note{margin:2.5rem 0 0;font-size:.8125rem;color:var(--faint)}
-
-  .closer{text-align:center}
-  .closer h2{margin-inline:auto;max-width:16ch}
-  .closer .cta{margin-top:2.25rem}
-  footer{border-top:1px solid var(--line);padding:2.5rem 0 3rem}
-  .fw{display:flex;flex-wrap:wrap;gap:1rem 2rem;justify-content:space-between;align-items:center}
-  .fw p{margin:0;font-size:.75rem;color:var(--faint);max-width:38rem;line-height:1.7}
-
-  @media(prefers-reduced-motion:reduce){
-    html{scroll-behavior:auto}
-    *,*::before,*::after{animation:none!important;transition:none!important}
-    .card{opacity:1}
-  }
-</style>
+<link rel="stylesheet" href="site.css">
+<link rel="icon" href="favicon.ico" sizes="32x32">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="manifest" href="site.webmanifest">
+<style>:root{--f-obj:var(--gold);--f-press:var(--red);--f-move:var(--blue);--f-farm:#6b7488;--f-reset:#a3abba;--ease:cubic-bezier(.22,.61,.36,1);--pad:clamp(1rem,4vw,2.5rem)}*,*::before,*::after{box-sizing:border-box}html{scroll-behavior:smooth;scroll-padding-top:5rem;scrollbar-gutter:stable;-webkit-text-size-adjust:100%}body{font-size:1rem;line-height:1.6;overflow-x:clip}img{display:block;max-width:100%}img.bad{visibility:hidden}a{color:inherit}button,input,select{font:inherit;color:inherit}button{cursor:pointer}[hidden]{display:none!important}::selection{background:rgba(var(--gold-rgb),.32)}:focus-visible{outline:2px solid var(--mark);outline-offset:3px}.sr{position:absolute;width:1px;height:1px;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}.skip{position:fixed;left:1rem;top:1rem;z-index:100;padding:.7rem 1.1rem;border-radius:var(--r-md);background:var(--gold);color:var(--on-gold);font-weight:700;text-decoration:none}.skip:not(:focus){width:1px;height:1px;padding:0;overflow:hidden;clip-path:inset(50%);white-space:nowrap}.dot{color:var(--gold);-webkit-text-fill-color:var(--gold)}.nw{white-space:nowrap}.ic{flex:none;display:inline-block;position:relative;overflow:hidden;background:var(--raised-2);vertical-align:middle}.ic img{width:100%;height:100%;object-fit:cover}.ic.rd{border-radius:50%}.ic.sq{border-radius:var(--r-sm)}.ic.cp img{transform:scale(1.1)}.k{margin:0 0 1rem;font-size:.875rem;font-weight:600;color:var(--dim)}.nq{display:inline-flex;align-items:center;gap:.5rem;height:2.25rem;padding:0 .95rem 0 .8rem;border-radius:999px;background:var(--raised);color:var(--text);font-size:.8125rem;font-weight:700;text-decoration:none;transition:background-color .15s}.nq:hover{background:var(--raised-2)}.nq svg{width:15px;height:15px;color:var(--gold)}@media(max-width:759px){.nq{width:2.5rem;height:2.5rem;padding:0;justify-content:center}.nq span{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}.nq svg{width:17px;height:17px}}.hero{position:relative;isolation:isolate;overflow:clip;display:flex;flex-direction:column;text-align:center;min-height:calc(100svh - 67px);padding:clamp(2rem,6svh,4.5rem) 0 clamp(1rem,3svh,2rem)}.hero-c{flex:1;display:flex;flex-direction:column;justify-content:center;align-items:center}h1{margin:0 auto;font-weight:800;font-size:clamp(3.75rem,min(1rem + 8.4vw,14.5svh),9.5rem);line-height:.92;letter-spacing:-.055em;text-wrap:balance;padding-bottom:.05em;color:var(--text)}.hero .cta{justify-content:center;margin-top:clamp(1.75rem,4.5svh,3rem);text-align:left}.scene{position:relative;isolation:isolate;padding-block:clamp(3.5rem,9svh,5rem)}.head{display:grid;gap:1.25rem 4rem;align-items:end}@media(min-width:60rem){.head{grid-template-columns:minmax(0,1.7fr) minmax(0,1fr)}}.subh{margin:0;font-weight:800;font-size:clamp(1.75rem,1rem + 2.2vw,2.75rem);line-height:1.02;letter-spacing:-.045em;text-wrap:balance}h2{margin:0;font-weight:800;font-size:clamp(2.5rem,1rem + 4.6vw,4.75rem);line-height:.98;letter-spacing:-.05em;text-wrap:balance}.sub{margin:0;max-width:34rem;color:var(--muted);font-size:clamp(1.0625rem,1rem + .3vw,1.1875rem);line-height:1.6;text-wrap:pretty}.sub strong{color:var(--text);font-weight:600}.verdict{display:block;margin-top:.8rem;color:var(--text);font-weight:600}.more{display:inline-flex;align-items:center;gap:.55rem;margin-top:1.2rem;color:var(--text);font-weight:600;font-size:.9375rem;text-decoration:none;padding-bottom:.2rem;border-bottom:1px solid var(--mark);transition:gap .2s var(--ease)}.more:hover{border-color:var(--mark);gap:.8rem}.more svg{width:16px;height:16px;color:var(--gold)}.panel{margin-top:clamp(2rem,5vh,3.25rem);border-radius:var(--r-lg);background:var(--surface);box-shadow:var(--surface-shadow)}.bar-h{display:flex;flex-wrap:wrap;justify-content:space-between;gap:.4rem 1rem;padding:1rem clamp(1.1rem,2.6vw,2.25rem);border-bottom:1px solid var(--line);font:600 .8125rem/1.3 var(--font);color:var(--dim)}.bar-h b{color:var(--muted);font-weight:600}.ticked{list-style:none;margin:0;padding:0;display:grid;gap:.55rem}.ticked li{position:relative;padding-left:1.6rem;color:var(--muted);line-height:1.5}.ticked li::before{content:"";position:absolute;left:.3rem;top:.28em;width:.34rem;height:.68rem;border:solid var(--gold);border-width:0 2px 2px 0;transform:rotate(45deg)}.ticked b{color:var(--text);font-weight:600}.lookup{overflow:hidden}.lk-body{display:grid;grid-template-columns:minmax(0,1fr) 19.5rem}.lk-main{min-width:0;padding:clamp(.9rem,2vw,1.5rem);container-type:inline-size}.lk-side{padding:clamp(1.25rem,2.2vw,1.75rem);border-left:1px solid var(--line);background:rgba(var(--bg-rgb),.28)}.qt{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:.8rem}.qt span{padding:.4rem .7rem;border-radius:var(--r-sm);background:var(--raised);font-size:.8125rem;font-weight:600;color:var(--dim)}.qt span.on{color:var(--text);background:var(--raised-2);box-shadow:inset 0 -2px 0 var(--mark)}.mrow{display:grid;grid-template-columns:5.75rem minmax(0,1fr) 7.5rem 12rem;border-radius:var(--r-md);overflow:hidden;background:#16202d;border-left:4px solid var(--blue)}.mm{display:flex;flex-direction:column;justify-content:center;padding:.8rem .2rem .8rem .85rem;font-size:.75rem;color:var(--muted);line-height:1.55;white-space:nowrap}.mm .q{color:var(--blue-t);font-weight:700;font-size:.8125rem}.mm i{display:block;width:2.5rem;height:1px;margin:.35rem 0;background:rgba(255,255,255,.14)}.mm .res{color:var(--text);font-weight:700}.mg{display:flex;flex-direction:column;justify-content:center;gap:.5rem;min-width:0;padding:.7rem .6rem}.mg .top{display:flex;align-items:center;gap:4px}.por{position:relative;flex:none;margin-right:4px}.por .ic{width:50px;height:50px;border-radius:50%}.por em{position:absolute;right:-4px;bottom:-4px;min-width:21px;height:21px;padding:0 4px;border-radius:999px;background:var(--bg);font:700 .6875rem/21px var(--font)}.stk{display:grid;gap:2px;flex:none}.stk .ic{width:23px;height:23px}.stk .kv{background:var(--sunk)}.stk .tr2{background:var(--sunk);padding:3px}.stk .tr2 img{object-fit:contain}.kda{flex:1;min-width:0;padding-left:4px;text-align:center}.kda b{display:block;font-size:1.0625rem;font-weight:800;white-space:nowrap}.kda s{text-decoration:none;color:var(--dim);font-weight:400;margin:0 3px}.kda i{font-style:normal;color:var(--red-t)}.kda small{display:block;font-size:.75rem;font-weight:600;color:var(--gold);white-space:nowrap}.badge{display:inline-block;margin-top:3px;padding:1px 8px;border-radius:999px;background:var(--fill);color:var(--on-gold);font-size:.625rem;font-weight:800}.its{display:flex;gap:2px}.its .ic{width:23px;height:23px;background:#223247}.its .tk{border-radius:50%;margin-left:4px}.ms{display:flex;flex-direction:column;justify-content:center;padding:.2rem .8rem;border-left:1px solid rgba(255,255,255,.1);font-size:.75rem;line-height:1.75;color:var(--muted);white-space:nowrap}.ms b{color:var(--text);font-weight:600}.lob{display:grid;grid-template-columns:1fr 1fr;gap:0 .55rem;align-self:center;padding:.55rem .75rem .55rem 0;font-size:.6875rem;color:var(--muted)}.lob>div{display:grid;gap:2px;min-width:0}.lob span{display:flex;align-items:center;gap:5px;min-width:0;height:17px}.lob u{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-decoration:none}.lob .ic{width:16px;height:16px;border-radius:3px}.lob .me{color:var(--text);font-weight:700}.sbtog{display:flex;align-items:center;justify-content:center;gap:.45rem;width:100%;height:2.5rem;margin-top:6px;border:0;border-radius:var(--r-md);background:var(--raised);color:var(--muted);font-size:.8125rem;font-weight:600;transition:color .15s}.sbtog:hover{color:var(--text);border-color:var(--line-2)}.sbtog svg{width:14px;height:14px;transition:transform .2s var(--ease)}.sbtog[aria-expanded=true] svg{transform:rotate(180deg)}.sb{display:grid;grid-template-columns:1fr 1fr;gap:0 1.25rem;padding:.6rem .1rem .2rem}.sbtog[aria-expanded=false]+.sb{display:none}.sbt h4{display:flex;align-items:center;gap:.5rem;margin:0;padding:.55rem .2rem;border-bottom:1px solid var(--line);font-size:.75rem;font-weight:700;color:var(--muted)}.sbt h4 i{width:7px;height:7px;border-radius:50%;background:var(--blue)}.sbt.red h4 i{background:var(--red)}.sbt h4 em{font-style:normal;color:var(--text)}.sbt h4 small{margin-left:auto;font-weight:500;color:var(--dim)}.pr{display:grid;grid-template-columns:26px minmax(0,1fr) 4.4rem 2.2rem;gap:.55rem;align-items:center;padding:.36rem .25rem;border-bottom:1px solid rgba(255,255,255,.04);font-size:.75rem;color:var(--muted)}.pr:last-child{border-bottom:0}.pr.hd span{overflow:hidden;white-space:nowrap;text-overflow:ellipsis}.pr.hd{padding-block:.4rem .2rem;border-bottom:0;font-size:.625rem;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--dim)}.pr .ic{width:26px;height:26px;border-radius:var(--r-sm)}.pr .nm{min-width:0}.pr .nm b{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:.75rem;font-weight:600;line-height:1.3;color:var(--text)}.dmg{display:flex;align-items:center;gap:.4rem;margin-top:3px}.dmg i{display:block;height:4px;border-radius:2px;background:#46536b}.dmg small{font-size:.625rem;line-height:1;color:var(--dim)}.pr .kd,.pr .cs{text-align:right;white-space:nowrap}.pr .kd{color:var(--text);font-weight:600}.pr .kd s{text-decoration:none;color:var(--dim);font-weight:400;margin:0 1px}.pr.me{border-radius:var(--r-sm);background:var(--raised);box-shadow:inset 3px 0 0 var(--mark)}.pr.me .dmg i{background:var(--fill)}.lm{display:flex;align-items:center;justify-content:center;gap:.6rem;height:2.5rem;margin-top:.7rem;border-radius:var(--r-md);border:1px dashed var(--line-2);font-size:.8125rem;font-weight:600;color:var(--muted);cursor:default}.lm small{font-size:.75rem;font-weight:500;color:var(--dim)}.lk-side .k{margin-bottom:.9rem}.lk-side .ticked{font-size:.875rem;margin-bottom:1.75rem}.regs{display:grid;grid-template-columns:repeat(auto-fill,minmax(3.4rem,1fr));gap:6px}.regs a{display:grid;place-items:center;height:2.375rem;border-radius:var(--r-sm);background:var(--raised);color:var(--muted);font:600 .8125rem/1 var(--font);letter-spacing:.02em;text-decoration:none;transition:color .15s,background-color .15s}.regs a:hover{color:var(--text);background:var(--raised-2)}.lk-side .hint{margin:.75rem 0 0;font-size:.8125rem;color:var(--dim)}.lk-foot{margin:0;padding:.9rem clamp(1.1rem,2.6vw,2.25rem);border-top:1px solid var(--line);font-size:.8125rem;color:var(--dim)}@media(max-width:62rem){.lk-body{grid-template-columns:minmax(0,1fr)}.lk-side{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.2fr);gap:0 2.5rem;border-left:0;border-top:1px solid var(--line)}.lk-side .ticked{margin:0}.lk-side>div+div{min-width:0}}@container (max-width:46rem){.mrow{grid-template-columns:5.5rem minmax(0,1fr) 7rem}.lob{display:none}}@container (max-width:34rem){.sb{grid-template-columns:minmax(0,1fr)}}@container (max-width:30rem){.mrow{grid-template-columns:minmax(0,1fr)}.mm{flex-direction:row;flex-wrap:wrap;align-items:center;gap:.1rem .6rem;padding:.6rem .8rem 0}.mm i{display:none}.ms{flex-direction:row;flex-wrap:wrap;gap:0 1rem;padding:.5rem .8rem;border-left:0;border-top:1px solid rgba(255,255,255,.08)}}@media(max-width:50rem){.lk-side{grid-template-columns:minmax(0,1fr)}.lk-side .ticked{margin-bottom:1.5rem}}@media(max-width:36rem){.qt span{padding:.34rem .5rem;font-size:.6875rem}}.player{padding:clamp(1rem,2.6vw,2.25rem)}.p-head{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:1.25rem 2rem;margin-bottom:clamp(1.25rem,2.6vw,2rem)}.call{display:flex;gap:1rem;min-width:0}.call .fam{flex:none;width:4px;border-radius:4px;background:var(--fc,var(--gold));transition:background-color .25s}.call .when{display:block;margin:0;font-size:.8125rem;color:var(--dim)}.what{margin:.25rem 0 0;font-size:clamp(1.375rem,1rem + 1.3vw,2.125rem);font-weight:800;letter-spacing:-.03em;line-height:1.15}.what time{margin-right:.3rem;font:700 .82em/1 var(--font);letter-spacing:0;color:var(--gold);font-variant-numeric:tabular-nums}.what span{font-weight:600;color:var(--muted)}.games{display:flex;gap:.5rem;flex-wrap:wrap}.games button{display:flex;align-items:center;gap:.6rem;height:2.75rem;padding:0 1rem 0 .3rem;border:0;border-radius:999px;background:var(--raised);color:var(--muted);font-size:.8125rem;font-weight:600;transition:color .15s,background-color .15s}.games button:hover{color:var(--text);border-color:rgba(255,255,255,.22)}.games button[aria-pressed=true]{color:var(--on-gold);background:var(--fill)}.games .ic{width:2.125rem;height:2.125rem;border-radius:50%;box-shadow:0 0 0 2px var(--side)}.maps{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));column-gap:clamp(.75rem,1.7vw,1.5rem);row-gap:0}.map{margin:0;min-width:0;display:grid;grid-row:span 2;grid-template-rows:subgrid;align-content:start}.map figcaption{display:flex;align-items:flex-end;flex-wrap:wrap;gap:.2rem .55rem;margin-bottom:.75rem;font-size:.875rem;font-weight:700;color:var(--text)}.map figcaption i{flex:none;width:8px;height:8px;border-radius:50%;background:var(--sw)}.map figcaption small{font-size:inherit;font-weight:600;letter-spacing:.08em;text-transform:none;color:var(--dim)}.map .frame{position:relative;aspect-ratio:1;border-radius:var(--r-md);overflow:hidden;background:var(--sunk)}.map .frame img{width:100%;height:100%;object-fit:cover;transition:opacity .25s}.map.omni{--sw:var(--text)}.map.blue{--sw:var(--blue)}.map.red{--sw:var(--red)}.map.blue .frame{box-shadow:0 0 0 1px rgba(var(--blue-rgb),.35)}.map.red .frame{box-shadow:0 0 0 1px rgba(var(--red-rgb),.35)}.loading .map .frame img{opacity:.55}.scrub{display:grid;grid-template-columns:auto minmax(0,1fr) auto auto;grid-template-areas:"prev track next count";align-items:center;gap:.6rem;margin-top:clamp(1.25rem,2.6vw,2rem)}#prev{grid-area:prev}#next{grid-area:next}.track{grid-area:track}.count{grid-area:count}.step{flex:none;width:2.75rem;height:2.75rem;border-radius:50%;display:grid;place-items:center;border:0;background:var(--raised);color:var(--muted);transition:color .15s,background-color .15s}.step:hover:not(:disabled){color:var(--text);background:var(--raised-2)}.step:disabled{opacity:.4;cursor:default}.step svg{width:16px;height:16px}.track{position:relative;min-width:0;height:2.25rem;border-radius:var(--r-sm)}.track:has(input:focus-visible){outline:2px solid var(--mark);outline-offset:5px}.ticks{position:absolute;inset:0;display:flex;gap:2px;pointer-events:none}.ticks i{flex:1 1 0;min-width:0;border-radius:2px;background:var(--c);transform:scaleY(.6);transition:transform .2s var(--ease)}.track:hover .ticks i{transform:scaleY(.7)}.ticks i.on{transform:scaleY(1.12)!important;box-shadow:0 0 0 1.5px var(--text)}.range{position:absolute;inset:0;width:100%;height:100%;margin:0;opacity:0;cursor:pointer;-webkit-appearance:none;appearance:none;background:transparent}.range::-webkit-slider-thumb{-webkit-appearance:none;width:var(--tw,8px);height:2.25rem}.range::-moz-range-thumb{width:var(--tw,8px);height:2.25rem;border:0}.count{min-width:4.25rem;text-align:right;font:600 .8125rem/1 var(--font);color:var(--dim)}.count b{color:var(--text);font-weight:600}.btog{display:none;align-items:center;justify-content:space-between;width:100%;height:2.75rem;margin-top:1.1rem;padding:0 1rem;border:0;border-radius:var(--r-md);background:var(--raised);color:var(--text);font-size:.875rem;font-weight:600}.btog small{margin-left:.5rem;font-weight:500;color:var(--dim)}.btog svg{width:15px;height:15px;color:var(--muted);transition:transform .2s var(--ease)}.btog[aria-expanded=true] svg{transform:rotate(180deg)}.builds{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.5rem clamp(1rem,2.4vw,2rem);margin-top:clamp(1.25rem,2.4vw,1.75rem);padding-top:clamp(1rem,2vw,1.4rem);border-top:1px solid var(--line)}.bt h4{display:flex;justify-content:space-between;margin:0 0 .35rem;padding:0 .5rem;font:700 .875rem/1 var(--font);color:var(--blue-t)}.bt.r h4{color:var(--red-t)}.bt h4 span{color:var(--dim);font-weight:600;letter-spacing:.1em}.bw{display:grid;grid-template-columns:1.75rem minmax(3.5rem,6.5rem) minmax(0,1fr) 3.1rem;gap:.7rem;align-items:center;height:2.3rem;padding:0 .5rem;border:1px solid transparent;border-radius:var(--r-md)}.bw+.bw{margin-top:2px}.bw.me{border-color:transparent;background:var(--raised);box-shadow:inset 3px 0 0 var(--mark)}.bw .pc{position:relative;width:1.75rem;height:1.75rem}.bw .pc .ic{width:100%;height:100%;border-radius:var(--r-sm)}.bw .pc em{position:absolute;right:-7px;bottom:-5px;min-width:15px;height:15px;padding:0 3px;border-radius:999px;background:var(--bg);font:700 .5625rem/13px var(--font);font-style:normal;text-align:center;color:var(--muted)}.bw .nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:.8125rem;font-weight:600}.bw.me .nm{color:var(--gold)}.bw .sl{display:flex;gap:2px;min-width:0;overflow:hidden}.bw .sl .ic{width:1.35rem;height:1.35rem;border-radius:4px}.bw .sl .none{font-size:.75rem;color:var(--dim)}.bw .g{text-align:right;font:600 .8125rem/1 var(--font);font-variant-numeric:tabular-nums;color:var(--gold)}.bw.dead .pc .ic{filter:grayscale(1);opacity:.5}.bw.dead .nm{color:var(--dim)}.bw .nm small{font-size:.6875rem;font-weight:500;color:var(--red-t)}.p-foot{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:.9rem 2rem;margin-top:1.25rem;font-size:.75rem;color:var(--dim)}.legend{display:flex;flex-wrap:wrap;gap:.45rem 1.15rem;margin:0;padding:0;list-style:none}.legend li{display:flex;align-items:center;gap:.45rem}.legend i{width:10px;height:10px;border-radius:2px;background:var(--c)}.meta{display:flex;flex-wrap:wrap;align-items:center;gap:.5rem 1rem;font-family:var(--mono);letter-spacing:.02em}.open{display:inline-flex;align-items:center;gap:.5rem;min-height:2.5rem;padding:0 1.1rem;border:0;border-radius:999px;background:var(--raised);font:600 .8125rem/1 var(--font);color:var(--text);text-decoration:none;transition:background-color .15s}.open:hover{background:var(--raised-2)}.open svg{width:15px;height:15px;color:var(--gold)}@media(max-width:52rem){.builds{grid-template-columns:minmax(0,1fr)}}@media(max-width:44rem){.maps{grid-template-columns:1fr 1fr}.map.omni{grid-column:1/-1}.map.blue,.map.red{margin-top:1.25rem}.map figcaption small{display:none}.map figcaption{font-size:.625rem;letter-spacing:.12em}.scrub{grid-template-columns:auto 1fr auto;grid-template-areas:"track track track" "prev count next";row-gap:.9rem}.count{text-align:center}.btog{display:flex}.builds{grid-template-columns:minmax(0,1fr);margin-top:.5rem;padding-top:.5rem;border-top:0}.btog[aria-expanded=false]+.builds{display:none}.bt+.bt{margin-top:.75rem}.bw{grid-template-columns:1.75rem minmax(0,1fr) auto 2.9rem;gap:.55rem}.bw .sl .ic{width:1.2rem;height:1.2rem}}.shop{overflow:hidden}.stl{padding:1.25rem clamp(1.25rem,2.6vw,2.25rem) .75rem;border-bottom:1px solid var(--line)}.stl-h{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:.5rem 1.5rem}.stl-h .k{margin:0}.dkey{display:flex;flex-wrap:wrap;gap:.35rem 1.1rem;font-size:.75rem;color:var(--dim)}.dkey span{display:inline-flex;align-items:center;gap:.5rem;white-space:nowrap}.dkey i{width:.6rem;height:.6rem;transform:rotate(45deg);border-radius:1px;border:1.5px solid var(--muted);background:var(--raised-2)}.dkey i.est{border-style:dashed}.dkey i.nr{border-style:dotted;background:transparent}.strack{position:relative;height:2.75rem;margin:.6rem 1rem 0;--m:9}.strack::before{content:"";position:absolute;left:0;right:0;top:50%;height:2px;margin-top:-1px;border-radius:2px;background:rgba(255,255,255,.1)}.strack button{position:absolute;left:var(--x);top:50%;width:1.75rem;height:1.75rem;margin:-.875rem 0 0 -.875rem;padding:0;border:0;border-radius:var(--r-sm);background:transparent;display:grid;place-items:center}.strack button i{width:.72rem;height:.72rem;transform:rotate(45deg);border-radius:2px;background:var(--raised-2);border:1.5px solid var(--muted);transition:all .15s}.strack button:hover i{border-color:var(--mark)}.strack button.est i{border-style:dashed}.strack button.nr i{border-style:dotted;background:var(--sunk)}.strack button[aria-pressed=true] i{width:.9rem;height:.9rem;background:var(--mark);border-color:var(--mark)}.sticks{position:relative;height:1.1rem;margin:0 1rem}.sticks span{position:absolute;transform:translateX(-50%);font:500 .6875rem/1 var(--font);color:var(--dim)}.sticks span:first-child{transform:none}.shop-body{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1.15fr)}.state,.did{padding:clamp(1.5rem,3.2vw,2.5rem)}.who{display:flex;align-items:center;gap:1rem}.who .ic{width:3.5rem;height:3.5rem;border-radius:var(--r-lg);border:1px solid var(--line-2)}.who b{display:block;font-size:1.375rem;font-weight:700;letter-spacing:-.025em;line-height:1.2}.who span{display:block;font-size:.875rem;color:var(--muted)}.facts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1.4rem 2rem;margin:1.75rem 0 0}.facts dt{margin-bottom:.5rem;font-size:.8125rem;font-weight:600;color:var(--dim)}.facts dd{margin:0;font-size:1.0625rem;font-weight:600}.facts .t{font-size:2rem;font-weight:800;letter-spacing:-.035em;line-height:1;font-variant-numeric:tabular-nums}.facts .gold{font-size:2rem;font-weight:800;letter-spacing:-.035em;line-height:1;color:var(--gold);font-variant-numeric:tabular-nums;white-space:nowrap}.facts .gold.nr{color:var(--dim)}.gq{display:inline-block;margin-top:.5rem;padding:.22rem .55rem;border-radius:var(--r-sm);background:var(--raised);font:600 .75rem/1.2 var(--font);color:var(--muted)}.gq.est{border-style:dashed;border-color:rgba(255,255,255,.28);color:var(--muted)}.wide{grid-column:1/-1}.score b{font-weight:700;font-variant-numeric:tabular-nums}.score .tb{color:var(--blue-t);margin-left:.3rem}.score .tr{color:var(--red-t)}.score .sep{margin:0 .7rem;color:var(--faint)}.icons{display:flex;flex-wrap:wrap;gap:.35rem}.icons .ic{width:2.25rem;height:2.25rem;border-radius:var(--r-md);border:1px solid var(--line-2)}.icons .none{font-size:.875rem;color:var(--dim);font-weight:500}.arrow{position:relative;display:grid;place-items:center;padding:0 .25rem}.arrow::before{content:"";position:absolute;top:0;bottom:0;left:50%;width:1px;background:var(--line-2)}.arrow span{position:relative;width:3rem;height:3rem;border-radius:50%;display:grid;place-items:center;background:var(--raised);color:var(--gold)}.arrow svg{width:18px;height:18px}.did{background:none}.ledger{margin:0}.did .open{margin-top:1.1rem}.snote{margin:.9rem 0 0;font-size:.8125rem;line-height:1.55;color:var(--dim)}.snote b{color:var(--muted);font-weight:600}.snote+.snote{margin-top:.35rem}.ledger>div{display:grid;grid-template-columns:4.5rem minmax(0,1fr);gap:1rem;align-items:center;min-height:3.75rem;padding:.7rem 0;border-top:1px solid var(--line)}.ledger>div:first-child{border-top:0;padding-top:0}.ledger dt{font:600 .8125rem/1 var(--font);color:var(--dim)}.ledger .bought dt{color:var(--gold)}.ledger dd{margin:0;min-width:0}.buys{display:flex;flex-wrap:wrap;gap:.45rem;margin:0;padding:0;list-style:none}.buys li{display:flex;align-items:center;gap:.6rem;padding:.3rem .75rem .3rem .3rem;border-radius:var(--r-sm);background:var(--raised);font-size:.875rem}.buys .ic{width:2.25rem;height:2.25rem;border-radius:var(--r-md)}.shop figcaption{padding:1rem clamp(1.25rem,2.6vw,2.25rem);border-top:1px solid var(--line);font-size:.8125rem;line-height:1.55;color:var(--dim)}.shop figcaption b{color:var(--muted);font-weight:600}.shop figure{margin:0}.corpus{padding:clamp(1.25rem,2.6vw,2rem) clamp(1.25rem,2.6vw,2.25rem);border-top:1px solid var(--line)}.corpus dl{display:grid;grid-template-columns:repeat(5,auto);justify-content:space-between;gap:1.5rem 2rem;margin:0}.corpus dl div{display:flex;flex-direction:column-reverse;justify-content:flex-end;gap:.55rem}.corpus dd{margin:0;font-size:clamp(1.5rem,1rem + 1.6vw,2.5rem);font-weight:800;letter-spacing:-.045em;line-height:1;font-variant-numeric:tabular-nums;white-space:nowrap}.corpus dt{font-size:.8125rem;color:var(--muted)}.corpus .hl dd{color:var(--gold)}.source{margin:1.25rem 0 0;font-size:.8125rem;color:var(--dim)}@media(max-width:62rem){.corpus dl{grid-template-columns:repeat(2,minmax(0,1fr));justify-content:stretch}.corpus .hl{grid-column:1/-1;order:-1}.corpus .hl dd{font-size:clamp(2.5rem,1rem + 6vw,3.5rem)}}@media(max-width:56rem){.shop-body{grid-template-columns:minmax(0,1fr)}.arrow{padding:0;height:0}.arrow::before{display:none}.arrow span{rotate:90deg;margin-block:-1.5rem;z-index:1}.did{border-top:1px solid var(--line)}}@media(max-width:40rem){.strack button{left:calc(var(--i) / var(--m) * 100%)}.sticks{display:none}.dkey{gap:.35rem .8rem}.ledger>div{grid-template-columns:minmax(0,1fr);gap:.6rem}}.cta{display:flex;flex-wrap:wrap;align-items:center;gap:1rem 1.4rem;margin-top:2.25rem}.btn{display:inline-flex;align-items:center;gap:.75rem;padding:1.15rem 2.1rem;border:0;border-radius:var(--r-md);background:var(--fill);color:var(--on-gold);font-weight:800;font-size:1.0625rem;line-height:1;transition:background-color .15s;box-shadow:var(--fill-shadow);text-decoration:none}.btn:hover{background:var(--fill-hover)}.btn svg{width:18px;height:18px}.reveal{transition:opacity 1s var(--ease),transform 1s var(--ease)}.reveal.pre{opacity:0;transform:translateY(36px)}@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}*,*::before,*::after{animation:none!important;transition:none!important}}@media(max-width:759px){.hero{min-height:calc(100svh - 55px)}}@media(max-width:36rem){.games button{padding:0 .3rem;height:2.75rem}.games .gn{display:none}}</style>
+<script>document.addEventListener("error", function (e) { if (e.target instanceof HTMLImageElement) e.target.classList.add("bad"); }, true);</script>
 </head>
 <body>
+<a class="skip" href="#main">Skip to content</a>
 
-<nav class="nav" id="nav"><div class="wrap">
-  <a class="logo" href="#">VIDENS<i>.</i></a>
-  <span class="tag">In development</span>
-</div></nav>
+<header class="nav" id="nav"><div class="wrap">
+<a class="logo" href="index.html" aria-label="Videns home">VIDENS<i>.</i></a>
+<nav class="links" aria-label="Primary">
+<a class="bc cur" href="index.html" aria-current="page">Home</a>
+<a class="bc" href="search.html">Search</a>
+<a class="bc" href="macro.html">Review</a>
+</nav>
+<div class="tools">
+<a class="nq" href="search.html">
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4.5 4.5"/></svg>
+<span>Search a player</span>
+</a>
+</div>
+</div></header>
 
-<header class="hero">
-  <!-- BACKGROUND VIDEO: <video src="hero.mp4" autoplay muted loop playsinline poster="hero.jpg"></video> -->
-  <div class="bg" aria-hidden="true"></div>
-  <div class="vig" aria-hidden="true"></div>
-
-  <div class="wrap">
-    <h1>League without <em>Limits</em></h1>
-    <p class="sub">Become the summoner you were supposed to</p>
-    <div class="cta">
-      <button class="dl">
-        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 5.5 10 4.6v6.9H3V5.5Zm8-1 10-1.3v8.2H11V4.5ZM3 12.6h7v6.9l-7-.9v-6ZM11 12.6h10v8.2l-10-1.3v-6.9Z"/></svg>
-        Download for Windows
-      </button>
-      <small>Free · Beta coming soon</small>
-    </div>
-  </div>
-
-  <!-- the calls, surrounding the title: build on one diagonal, macro on the other -->
-  <div class="cards">
-
-    <div class="card c1">
-      <h4><span>BUILD · NAUTILUS</span><b class="g">1,200-1,799 G</b></h4>
-      <div class="state">
-        <span class="lbl">Holding</span>
-        <span class="chips">
-          <img src="https://ddragon.leagueoflegends.com/cdn/16.18.1/img/item/1001.png" alt="Boots" title="Boots">
-          <img src="https://ddragon.leagueoflegends.com/cdn/16.18.1/img/item/1029.png" alt="Cloth Armor" title="Cloth Armor">
-          <img src="https://ddragon.leagueoflegends.com/cdn/16.18.1/img/item/1033.png" alt="Null-Magic Mantle" title="Null-Magic Mantle">
-          <img src="https://ddragon.leagueoflegends.com/cdn/16.18.1/img/item/3067.png" alt="Kindlegem" title="Kindlegem">
-          <img src="https://ddragon.leagueoflegends.com/cdn/16.18.1/img/item/3866.png" alt="Runic Compass" title="Runic Compass">
-        </span>
-      </div>
-      <ol class="items">
-        <li><span class="bar" style="width:91%"></span><img src="https://ddragon.leagueoflegends.com/cdn/16.18.1/img/item/3190.png" alt=""><span class="nm">Locket of the Iron Solari</span><span class="pc">91.3%</span></li>
-        <li><span class="bar" style="width:12%"></span><img src="https://ddragon.leagueoflegends.com/cdn/16.18.1/img/item/3050.png" alt=""><span class="nm">Zeke's Convergence</span><span class="pc">5.8%</span></li>
-        <li><span class="bar" style="width:6%"></span><img src="https://ddragon.leagueoflegends.com/cdn/16.18.1/img/item/2524.png" alt=""><span class="nm">Bandlepipes</span><span class="pc">2.9%</span></li>
-      </ol>
-      <p class="foot">69 Nautilus supports, level 6-8, stood in this exact state.</p>
-    </div>
-
-    <div class="card c2">
-      <h4><span>MACRO · 5:04</span><b class="m">DRAKE</b></h4>
-      <div class="call">
-        <span class="ic">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 12h4l3-7 4 14 3-7h4"/></svg>
-        </span>
-        <span>
-          <b>Drake is up</b>
-          <span>You reset at 4:23 and walked it with a full camp clear behind you.</span>
-        </span>
-      </div>
-      <p class="foot">Read from the replay and the official timeline.</p>
-    </div>
-
-    <div class="card c3">
-      <h4><span>MACRO · 5:19</span><b class="m">GANK TOP</b></h4>
-      <div class="call warn">
-        <span class="ic">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3 4 7v6c0 5 3.4 8.6 8 10 4.6-1.4 8-5 8-10V7l-8-4Z"/></svg>
-        </span>
-        <span>
-          <b>Gank landed top</b>
-          <span>Enemy jungler was bot-side. The lane was pushed to you.</span>
-          <span class="who">
-            <img src="https://ddragon.leagueoflegends.com/cdn/16.18.1/img/champion/Chogath.png" alt="Cho'Gath">
-            <em>CHO'GATH · TOP</em>
-          </span>
-        </span>
-      </div>
-      <p class="foot">EUW1_7983109023 — Evelynn, jungle.</p>
-    </div>
-
-    <div class="card c4">
-      <h4><span>BUILD · COMPLETED</span><b class="g">1,150 / 1,500</b></h4>
-      <div class="call">
-        <span class="ic" style="border-color:rgba(232,193,74,.35);background:rgba(232,193,74,.12)">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" style="color:var(--accent)"><path d="M20 7 9 18l-5-5"/></svg>
-        </span>
-        <span>
-          <b>Mejai's Soulstealer</b>
-          <span>Paid under list price — the Dark Seal was already held.</span>
-          <span class="who">
-            <img src="https://ddragon.leagueoflegends.com/cdn/16.18.1/img/item/1082.png" alt="Dark Seal">
-            <em>DARK SEAL · OWNED</em>
-          </span>
-        </span>
-      </div>
-      <p class="foot">KR_8376630711 — patch 16.18.</p>
-    </div>
-
-  </div>
-
-</header>
-
-<section>
-  <div class="wrap">
-    <p class="eyebrow">Two halves of the same game</p>
-    <h2>It sees what you bought and where you went</h2>
-    <p class="lead">Both read back from real matches. If it can't be observed, it isn't labelled.</p>
-
-    <div class="split">
-      <article class="pane">
-        <h3>The <i>build</i> coach</h3>
-        <p>Every shop visit rebuilt from the timeline — gold, inventory, board, buy.</p>
-        <div class="rec">
-          <h5><span>KR_8376630711</span><span>PATCH 16.18</span></h5>
-          <div class="in">
-            <div class="who2"><b>Vladimir</b><span>Mid · 14:16</span></div>
-            <div class="stats">
-              <div><b class="g">2,213</b><span>Gold</span></div>
-              <div><b>11</b><span>Level</span></div>
-              <div><b>111</b><span>CS</span></div>
-              <div><b>4/3/8</b><span>KDA</span></div>
-            </div>
-            <p class="mini">Held</p>
-            <div class="row">
-              <img src="https://ddragon.leagueoflegends.com/cdn/16.18.1/img/item/1056.png" alt="Doran's Ring">
-              <img src="https://ddragon.leagueoflegends.com/cdn/16.18.1/img/item/1082.png" alt="Dark Seal">
-              <img src="https://ddragon.leagueoflegends.com/cdn/16.18.1/img/item/4629.png" alt="Cosmic Drive">
-              <img src="https://ddragon.leagueoflegends.com/cdn/16.18.1/img/item/3363.png" alt="Farsight">
-            </div>
-            <p class="mini">Bought</p>
-            <div class="buy">
-              <img src="https://ddragon.leagueoflegends.com/cdn/16.18.1/img/item/3041.png" alt="Mejai's">
-              <span><b>Mejai's Soulstealer</b><span>Paid <i>1,150</i> of 1,500 — already held the Dark Seal.</span></span>
-            </div>
-          </div>
-        </div>
-      </article>
-
-      <article class="pane">
-        <h3>The <i>macro</i> coach</h3>
-        <p>Your match turned into the moves you actually made, minute by minute.</p>
-        <div class="rec">
-          <h5><span>EUW1_7983109023</span><span>EVELYNN · JUNGLE</span></h5>
-          <div class="in">
-            <ol class="tl">
-              <li><time>3:28</time><b>Farm · red quadrant</b></li>
-              <li><time>4:02</time><b>Farm · blue quadrant</b></li>
-              <li><time>4:23</time><b>Reset</b></li>
-              <li class="k"><time>5:04</time><b>Dragon</b></li>
-              <li class="k"><time>5:19</time><b>Gank top</b></li>
-              <li><time>5:52</time><b>Invade · blue side</b></li>
-            </ol>
-          </div>
-        </div>
-      </article>
-    </div>
-  </div>
+<main id="main">
+<section class="hero" aria-labelledby="hero-title">
+<div class="wrap hero-c">
+<h1 id="hero-title">See the whole game<span class="dot">.</span></h1>
+<div class="cta">
+<a class="btn" href="macro.html">
+Open the Review
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
+</div>
+</div>
 </section>
 
-<section>
-  <div class="wrap">
-    <p class="eyebrow">The corpus</p>
-    <h2>Built on real high-elo games</h2>
-    <div class="figs">
-      <div class="fig"><b>2,995,568</b><span>Shop decisions rebuilt</span></div>
-      <div class="fig"><b>30,738</b><span>Complete ten-player games</span></div>
-      <div class="fig"><b>249,979</b><span>Player-game perspectives</span></div>
-      <div class="fig"><b>17,563</b><span>Ladder players</span></div>
-    </div>
-    <p class="foot-note">Build corpus · patches 16.17–16.18 · ranked solo, KR and EUW · counted 18 Sep 2026. The macro side is an earlier prototype.</p>
-  </div>
+<section class="scene review" id="review" aria-labelledby="review-title">
+<div class="wrap">
+<div class="head reveal">
+<div>
+<h2 id="review-title">Outperform early<span class="dot">.</span></h2>
+</div>
+<div>
+<p class="sub">40 challenger jungle games, <strong>1,970 decisions</strong>. Each call shows the whole map, then what each team could see through the fog, with all ten builds and HUD gold beside it.</p>
+<a class="more" href="macro.html">Open the Review
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
+</div>
+</div>
+
+<div class="player panel reveal" id="player">
+<div class="p-head">
+<div class="call" id="call" style="--fc:var(--f-obj)">
+<span class="fam" aria-hidden="true"></span>
+<div>
+<p class="when" id="p-sub">Jungle · blue side · decision 10 of 49</p>
+<h3 class="what" id="p-what"><time>5:51</time> <b>Aatrox</b> <span>plays for Dragon</span></h3>
+<p class="sr" id="p-live" aria-live="polite"></p>
+</div>
+</div>
+<div class="games" id="games" role="group" aria-label="Choose a game">
+<button type="button" data-g="0" aria-pressed="true" style="--side:var(--blue)" aria-label="Aatrox, blue side"><span class="ic"><img src="https://ddragon.leagueoflegends.com/cdn/16.18.1/img/champion/Aatrox.png" alt="" width="34" height="34" loading="lazy"></span><span class="gn">Aatrox</span></button>
+<button type="button" data-g="1" aria-pressed="false" style="--side:var(--blue)" aria-label="Dr. Mundo, blue side"><span class="ic"><img src="https://ddragon.leagueoflegends.com/cdn/16.18.1/img/champion/DrMundo.png" alt="" width="34" height="34" loading="lazy"></span><span class="gn">Dr. Mundo</span></button>
+<button type="button" data-g="2" aria-pressed="false" style="--side:var(--red)" aria-label="Volibear, red side"><span class="ic"><img src="https://ddragon.leagueoflegends.com/cdn/16.18.1/img/champion/Volibear.png" alt="" width="34" height="34" loading="lazy"></span><span class="gn">Volibear</span></button>
+</div>
+</div>
+
+<div class="maps" id="maps">
+<figure class="map omni">
+<figcaption><i></i>No fog</figcaption>
+<div class="frame"><img id="m-omni" src="review-data/img/EUW1_7982999189/omni_003507.webp" alt="Minimap at 5:51 with no fog" width="360" height="360" loading="lazy" decoding="async"></div>
+</figure>
+<figure class="map blue">
+<figcaption><i></i>Blue team's view <small id="pov-blue">Aatrox's team</small></figcaption>
+<div class="frame"><img id="m-blue" src="review-data/img/EUW1_7982999189/blue_003498.webp" alt="Minimap at 5:51 as the blue team saw it" width="360" height="360" loading="lazy" decoding="async"></div>
+</figure>
+<figure class="map red">
+<figcaption><i></i>Red team's view <small id="pov-red" hidden>Aatrox's team</small></figcaption>
+<div class="frame"><img id="m-red" src="review-data/img/EUW1_7982999189/red_003491.webp" alt="Minimap at 5:51 as the red team saw it" width="360" height="360" loading="lazy" decoding="async"></div>
+</figure>
+</div>
+
+<div class="scrub" id="scrub" hidden>
+<button class="step" type="button" id="prev" aria-label="Previous decision">
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 5-7 7 7 7"/></svg></button>
+<div class="track" id="track">
+<div class="ticks" id="ticks" aria-hidden="true"></div>
+<input class="range" id="range" type="range" min="0" max="48" step="1" value="9" aria-label="Decision in this game">
+</div>
+<button class="step" type="button" id="next" aria-label="Next decision">
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 5 7 7-7 7"/></svg></button>
+<span class="count" id="count" aria-hidden="true"><b>10</b> / 49</span>
+</div>
+
+<button class="btog" id="btog" type="button" aria-expanded="false" aria-controls="builds">
+<span>All ten builds<small>HUD gold</small></span>
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button>
+<div class="builds" id="builds" aria-label="All ten builds and HUD gold at this decision"></div>
+
+<div class="p-foot">
+<ul class="legend" aria-label="Decision types">
+<li style="--c:var(--f-obj)"><i></i>Objective</li>
+<li style="--c:var(--f-press)"><i></i>Gank, invade, fight</li>
+<li style="--c:var(--f-move)"><i></i>Rotate, cover, watch</li>
+<li style="--c:var(--f-farm)"><i></i>Farm</li>
+<li style="--c:var(--f-reset)"><i></i>Reset</li>
+</ul>
+<span class="meta"><span><span id="p-mid">EUW1_7982999189</span> · patch <span id="p-patch">16.18</span></span>
+<a class="open" id="p-open" href="macro.html#/EUW1_7982999189/9">Open this decision
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a></span>
+</div>
+</div>
+</div>
 </section>
 
-<section class="closer">
-  <div class="wrap">
-    <h2>Stop guessing what went wrong</h2>
-    <div class="cta">
-      <button class="dl">
-        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 5.5 10 4.6v6.9H3V5.5Zm8-1 10-1.3v8.2H11V4.5ZM3 12.6h7v6.9l-7-.9v-6ZM11 12.6h10v8.2l-10-1.3v-6.9Z"/></svg>
-        Download for Windows
-      </button>
-      <small>Free · Beta coming soon</small>
-    </div>
-  </div>
+<section class="scene build" id="coach" aria-labelledby="coach-title">
+<div class="wrap">
+<div class="head reveal">
+<div>
+<h2 id="coach-title">See what others can’t<span class="dot">.</span></h2>
+</div>
+<p class="sub">An experimental reference model imitates what high-elo players bought in similar reconstructed states. The Review shows its options, after the game, wherever it could rebuild the shop.
+<strong class="verdict">Options to weigh, not a verdict.</strong></p>
+</div>
+
+<div class="shop panel reveal">
+<figure>
+<div class="bar-h"><span><b>Aatrox</b> · one reviewed game · <span class="nw">11 shop visits</span></span><span>EUW1_7982999189 · patch 16.18</span></div>
+<div class="stl">
+<div class="stl-h"><p class="k" id="stl-k">Shop visits</p>
+<span class="dkey" aria-hidden="true"><span><i></i>Gold exact</span><span><i class="est"></i>Estimated range</span><span><i class="nr"></i>No HUD reading</span></span></div>
+<div class="strack" id="strack" role="group" aria-labelledby="stl-k"></div>
+<div class="sticks" id="sticks" aria-hidden="true"></div>
+</div>
+<div class="shop-body">
+<div class="state">
+<p class="k">The state</p>
+<div class="who">
+<span class="ic"><img src="https://ddragon.leagueoflegends.com/cdn/16.18.1/img/champion/Aatrox.png" alt="" width="56" height="56" loading="lazy"></span>
+<div><b>Aatrox</b><span id="s-who">Jungle · level 12 · blue side</span></div>
+</div>
+<dl class="facts">
+<div><dt>Time</dt><dd class="t" id="s-t">19:19</dd></div>
+<div><dt>Gold on hand</dt><dd class="gold" id="s-g">723</dd><dd><span class="gq" id="s-gq">exact</span></dd></div>
+<div class="wide"><dt>Enemy team</dt><dd class="icons" id="s-foe"></dd></div>
+<div class="wide"><dt>Board</dt><dd class="score" id="s-obj"></dd></div>
+</dl>
+</div>
+<div class="arrow" aria-hidden="true"><span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span></div>
+<div class="did">
+<p class="k">What the player did</p>
+<dl class="ledger">
+<div><dt>Held</dt><dd class="icons" id="s-held"></dd></div>
+<div class="bought"><dt>Bought</dt><dd><ul class="buys" id="s-buy"></ul></dd></div>
+<div><dt>After</dt><dd class="icons" id="s-after"></dd></div>
+</dl>
+<p class="snote" id="s-note" hidden></p>
+<a class="open" id="s-open" href="macro.html#/EUW1_7982999189/40">Open this shop in the Review
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
+<p class="snote" id="s-noopt" hidden></p>
+</div>
+</div>
+<figcaption>The shop visits of one reviewed challenger game: ten read off the HUD, and one (14:37) that only the Review's shop rebuild found. <b>Bought</b> is what the player bought, not a coach option. After is the build at the next reviewed decision, or at the next visit when that comes first. Control Wards and trinkets don't show in Held or After.</figcaption>
+</figure>
+<div class="corpus">
+<p class="k">The build corpus</p>
+<dl>
+<div><dt>Ranked solo games</dt><dd>39,968</dd></div>
+<div class="hl"><dt>Shop decisions rebuilt</dt><dd>3,394,921</dd></div>
+<div><dt>Players</dt><dd>19,346</dd></div>
+<div><dt>Patches</dt><dd>16.17–16.19</dd></div>
+<div><dt>Regions</dt><dd>KR · EUW</dd></div>
+</dl>
+<p class="source">Counted from the Videns database on 30 Sep 2026.</p>
+</div>
+</div>
+</div>
 </section>
 
-<footer><div class="wrap fw">
-  <a class="logo" href="#">VIDENS<i>.</i></a>
-  <p>Videns is an independent project, not endorsed by or affiliated with Riot Games. League of Legends is a trademark of Riot Games, Inc.</p>
+<section class="scene srch" id="search" aria-labelledby="search-title">
+<div class="wrap">
+<div class="head reveal">
+<div>
+<h2 id="search-title">Improve<span class="dot">.</span></h2>
+</div>
+<div>
+<p class="sub">Rank, recent games with Load more, season champion stats and a <strong>full scoreboard</strong> for every match. ARAM and Arena are first-class queues.</p>
+<a class="more" href="search.html">Open Search
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
+</div>
+</div>
+
+<div class="lookup panel reveal">
+<div class="bar-h"><span>One match · <b>row and scoreboard</b></span><span>Sample · ranked KR game · played 28 Sep 2026 · patch 16.19</span></div>
+<div class="lk-body">
+<div class="lk-main">
+<div class="qt" aria-hidden="true"><span class="on">All</span><span>Solo/Duo</span><span>Flex</span><span>ARAM</span><span>Arena</span></div>
+<article class="mrow" aria-label="Victory in Ranked Solo as LeBlanc: 17 kills, 2 deaths, 4 assists">
+<div class="mm"><b class="q">Ranked Solo</b><span>Sep 28</span><i></i><b class="res">Victory</b><span>30m 21s</span></div>
+<div class="mg">
+<div class="top">
+<span class="por"><span class="ic cp"><img src="https://ddragon.leagueoflegends.com/cdn/16.19.1/img/champion/Leblanc.png" alt="LeBlanc" width="50" height="50" loading="lazy" decoding="async"></span><em aria-label="level 18">18</em></span>
+<span class="stk"><span class="ic sq"><img src="https://ddragon.leagueoflegends.com/cdn/16.19.1/img/spell/SummonerTeleport.png" alt="Teleport" width="23" height="23" loading="lazy" decoding="async"></span><span class="ic sq"><img src="https://ddragon.leagueoflegends.com/cdn/16.19.1/img/spell/SummonerFlash.png" alt="Flash" width="23" height="23" loading="lazy" decoding="async"></span></span>
+<span class="stk"><span class="ic rd kv"><img src="https://ddragon.leagueoflegends.com/cdn/img/perk-images/Styles/Domination/Electrocute/Electrocute.png" alt="Electrocute" width="23" height="23" loading="lazy" decoding="async"></span><span class="ic rd tr2"><img src="https://ddragon.leagueoflegends.com/cdn/img/perk-images/Styles/7204_Resolve.png" alt="Resolve" width="23" height="23" loading="lazy" decoding="async"></span></span>
+<div class="kda"><b>17<s>/</s><i>2</i><s>/</s>4</b><small>10.50:1 KDA</small><span class="badge">Triple Kill</span></div>
+</div>
+<div class="its"><span class="ic sq"><img src="https://ddragon.leagueoflegends.com/cdn/16.19.1/img/item/3102.png" alt="Banshee&#39;s Veil" width="23" height="23" loading="lazy" decoding="async"></span><span class="ic sq"><img src="https://ddragon.leagueoflegends.com/cdn/16.19.1/img/item/3171.png" alt="Crimson Lucidity" width="23" height="23" loading="lazy" decoding="async"></span><span class="ic sq"><img src="https://ddragon.leagueoflegends.com/cdn/16.19.1/img/item/6655.png" alt="Luden&#39;s Echo" width="23" height="23" loading="lazy" decoding="async"></span><span class="ic sq"><img src="https://ddragon.leagueoflegends.com/cdn/16.19.1/img/item/3041.png" alt="Mejai&#39;s Soulstealer" width="23" height="23" loading="lazy" decoding="async"></span><span class="ic sq"><img src="https://ddragon.leagueoflegends.com/cdn/16.19.1/img/item/3089.png" alt="Rabadon&#39;s Deathcap" width="23" height="23" loading="lazy" decoding="async"></span><span class="ic sq"><img src="https://ddragon.leagueoflegends.com/cdn/16.19.1/img/item/4645.png" alt="Shadowflame" width="23" height="23" loading="lazy" decoding="async"></span><span class="ic tk"><img src="https://ddragon.leagueoflegends.com/cdn/16.19.1/img/item/3364.png" alt="Oracle Lens" width="23" height="23" loading="lazy" decoding="async"></span></div>
+</div>
+<div class="ms"><span>CS <b>265</b> (8.7)</span><span>Vision <b>42</b></span><span>Damage <b>35,878</b></span></div>
+<div class="lob" aria-hidden="true"><div><span><span class="ic"><img src="https://ddragon.leagueoflegends.com/cdn/16.19.1/img/champion/Jayce.png" alt="" width="16" height="16" loading="lazy" decoding="async"></span><u>Jayce</u></span><span><span class="ic"><img src="https://ddragon.leagueoflegends.com/cdn/16.19.1/img/champion/Qiyana.png" alt="" width="16" height="16" loading="lazy" decoding="async"></span><u>Qiyana</u></span><span><span class="ic"><img src="https://ddragon.leagueoflegends.com/cdn/16.19.1/img/champion/Syndra.png" alt="" width="16" height="16" loading="lazy" decoding="async"></span><u>Syndra</u></span><span><span class="ic"><img src="https://ddragon.leagueoflegends.com/cdn/16.19.1/img/champion/MissFortune.png" alt="" width="16" height="16" loading="lazy" decoding="async"></span><u>Miss Fortune</u></span><span><span class="ic"><img src="https://ddragon.leagueoflegends.com/cdn/16.19.1/img/champion/Galio.png" alt="" width="16" height="16" loading="lazy" decoding="async"></span><u>Galio</u></span></div><div><span><span class="ic"><img src="https://ddragon.leagueoflegends.com/cdn/16.19.1/img/champion/Nasus.png" alt="" width="16" height="16" loading="lazy" decoding="async"></span><u>Nasus</u></span><span><span class="ic"><img src="https://ddragon.leagueoflegends.com/cdn/16.19.1/img/champion/Taliyah.png" alt="" width="16" height="16" loading="lazy" decoding="async"></span><u>Taliyah</u></span><span class="me"><span class="ic"><img src="https://ddragon.leagueoflegends.com/cdn/16.19.1/img/champion/Leblanc.png" alt="" width="16" height="16" loading="lazy" decoding="async"></span><u>LeBlanc</u></span><span><span class="ic"><img src="https://ddragon.leagueoflegends.com/cdn/16.19.1/img/champion/Yunara.png" alt="" width="16" height="16" loading="lazy" decoding="async"></span><u>Yunara</u></span><span><span class="ic"><img src="https://ddragon.leagueoflegends.com/cdn/16.19.1/img/champion/Nautilus.png" alt="" width="16" height="16" loading="lazy" decoding="async"></span><u>Nautilus</u></span></div></div>
+</article>
+<button class="sbtog" id="sbtog" type="button" aria-expanded="true" aria-controls="sb10">Scoreboard
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button>
+<div class="sb" id="sb10">
+<div class="sbt"><h4><i></i><em>Defeat</em> · Blue side<small>26 kills</small></h4>
+<div class="pr hd" aria-hidden="true"><span></span><span>Champion · damage</span><span>K / D / A</span><span>CS</span></div>
+<div class="pr"><span class="ic"><img src="https://ddragon.leagueoflegends.com/cdn/16.19.1/img/champion/Jayce.png" alt="" width="26" height="26" loading="lazy" decoding="async"></span><div class="nm"><b>Jayce</b><div class="dmg"><i style="width:70.7%"></i><small>25,368<span class="sr"> damage</span></small></div></div><span class="kd">3<s>/</s>12<s>/</s>4</span><span class="cs">234<span class="sr"> CS</span></span></div>
+<div class="pr"><span class="ic"><img src="https://ddragon.leagueoflegends.com/cdn/16.19.1/img/champion/Qiyana.png" alt="" width="26" height="26" loading="lazy" decoding="async"></span><div class="nm"><b>Qiyana</b><div class="dmg"><i style="width:59.6%"></i><small>21,382<span class="sr"> damage</span></small></div></div><span class="kd">6<s>/</s>9<s>/</s>5</span><span class="cs">216<span class="sr"> CS</span></span></div>
+<div class="pr"><span class="ic"><img src="https://ddragon.leagueoflegends.com/cdn/16.19.1/img/champion/Syndra.png" alt="" width="26" height="26" loading="lazy" decoding="async"></span><div class="nm"><b>Syndra</b><div class="dmg"><i style="width:66.7%"></i><small>23,915<span class="sr"> damage</span></small></div></div><span class="kd">6<s>/</s>4<s>/</s>10</span><span class="cs">303<span class="sr"> CS</span></span></div>
+<div class="pr"><span class="ic"><img src="https://ddragon.leagueoflegends.com/cdn/16.19.1/img/champion/MissFortune.png" alt="" width="26" height="26" loading="lazy" decoding="async"></span><div class="nm"><b>Miss Fortune</b><div class="dmg"><i style="width:90.1%"></i><small>32,322<span class="sr"> damage</span></small></div></div><span class="kd">11<s>/</s>6<s>/</s>2</span><span class="cs">276<span class="sr"> CS</span></span></div>
+<div class="pr"><span class="ic"><img src="https://ddragon.leagueoflegends.com/cdn/16.19.1/img/champion/Galio.png" alt="" width="26" height="26" loading="lazy" decoding="async"></span><div class="nm"><b>Galio</b><div class="dmg"><i style="width:38.6%"></i><small>13,843<span class="sr"> damage</span></small></div></div><span class="kd">0<s>/</s>11<s>/</s>14</span><span class="cs">39<span class="sr"> CS</span></span></div>
+</div>
+<div class="sbt red"><h4><i></i><em>Victory</em> · Red side<small>42 kills</small></h4>
+<div class="pr hd" aria-hidden="true"><span></span><span>Champion · damage</span><span>K / D / A</span><span>CS</span></div>
+<div class="pr"><span class="ic"><img src="https://ddragon.leagueoflegends.com/cdn/16.19.1/img/champion/Nasus.png" alt="" width="26" height="26" loading="lazy" decoding="async"></span><div class="nm"><b>Nasus</b><div class="dmg"><i style="width:74.1%"></i><small>26,601<span class="sr"> damage</span></small></div></div><span class="kd">9<s>/</s>4<s>/</s>10</span><span class="cs">223<span class="sr"> CS</span></span></div>
+<div class="pr"><span class="ic"><img src="https://ddragon.leagueoflegends.com/cdn/16.19.1/img/champion/Taliyah.png" alt="" width="26" height="26" loading="lazy" decoding="async"></span><div class="nm"><b>Taliyah</b><div class="dmg"><i style="width:59.8%"></i><small>21,452<span class="sr"> damage</span></small></div></div><span class="kd">7<s>/</s>8<s>/</s>14</span><span class="cs">241<span class="sr"> CS</span></span></div>
+<div class="pr me"><span class="ic"><img src="https://ddragon.leagueoflegends.com/cdn/16.19.1/img/champion/Leblanc.png" alt="" width="26" height="26" loading="lazy" decoding="async"></span><div class="nm"><b>LeBlanc</b><div class="dmg"><i style="width:100.0%"></i><small>35,878<span class="sr"> damage</span></small></div></div><span class="kd">17<s>/</s>2<s>/</s>4</span><span class="cs">265<span class="sr"> CS</span></span></div>
+<div class="pr"><span class="ic"><img src="https://ddragon.leagueoflegends.com/cdn/16.19.1/img/champion/Yunara.png" alt="" width="26" height="26" loading="lazy" decoding="async"></span><div class="nm"><b>Yunara</b><div class="dmg"><i style="width:67.8%"></i><small>24,327<span class="sr"> damage</span></small></div></div><span class="kd">8<s>/</s>4<s>/</s>10</span><span class="cs">284<span class="sr"> CS</span></span></div>
+<div class="pr"><span class="ic"><img src="https://ddragon.leagueoflegends.com/cdn/16.19.1/img/champion/Nautilus.png" alt="" width="26" height="26" loading="lazy" decoding="async"></span><div class="nm"><b>Nautilus</b><div class="dmg"><i style="width:20.7%"></i><small>7,436<span class="sr"> damage</span></small></div></div><span class="kd">1<s>/</s>8<s>/</s>16</span><span class="cs">21<span class="sr"> CS</span></span></div>
+</div>
+</div>
+<script>if (matchMedia("(max-width: 44rem)").matches) document.getElementById("sbtog").setAttribute("aria-expanded", "false");</script>
+<div class="lm" aria-hidden="true">Load more <small>· 20 games at a time</small></div>
+</div>
+<div class="lk-side">
+<div>
+<h3 class="k">Every lookup</h3>
+<ul class="ticked">
+<li><b>Rank</b> for Solo/Duo and Flex</li>
+<li><b>Recent games</b>, with Load more</li>
+<li><b>Season champion stats</b></li>
+<li><b>ARAM and Arena</b> as first-class queues</li>
+<li><b>Full scoreboards</b> on every match</li>
+</ul>
+</div>
+<div>
+<h3 class="k" id="reg-h">17 regions</h3>
+<div class="regs" id="regs" role="group" aria-labelledby="reg-h">
+<a href="search.html?region=euw">EUW</a><a href="search.html?region=eune">EUNE</a>
+<a href="search.html?region=na">NA</a><a href="search.html?region=kr">KR</a>
+<a href="search.html?region=br">BR</a><a href="search.html?region=lan">LAN</a>
+<a href="search.html?region=las">LAS</a><a href="search.html?region=jp">JP</a>
+<a href="search.html?region=tr">TR</a><a href="search.html?region=ru">RU</a>
+<a href="search.html?region=me">ME</a><a href="search.html?region=oce">OCE</a>
+<a href="search.html?region=sg">SG</a><a href="search.html?region=ph">PH</a>
+<a href="search.html?region=th">TH</a><a href="search.html?region=tw">TW</a>
+<a href="search.html?region=vn">VN</a>
+</div>
+<p class="hint">Pick one to open Search there.</p>
+</div>
+</div>
+</div>
+<p class="lk-foot">A real ranked game from the Riot API, shown with champions only.</p>
+</div>
+</div>
+</section>
+
+</main>
+
+<footer class="foot"><div class="wrap">
+<a class="logo" href="index.html" aria-label="Videns home">VIDENS<i>.</i></a>
+<nav aria-label="Footer">
+<a href="index.html" aria-current="page">Home</a>
+<a href="search.html">Search</a>
+<a href="macro.html">Review</a>
+</nav>
+<p>Videns is an independent project, not endorsed by or affiliated with Riot Games. League of Legends is a trademark of Riot Games, Inc.</p>
 </div></footer>
 
-<script>
-  const nav = document.getElementById('nav');
-  addEventListener('scroll', () => nav.classList.toggle('stuck', scrollY > 40), { passive: true });
-</script>
+<script>"use strict";
+const $ = (id) => document.getElementById(id);
+const still = matchMedia("(prefers-reduced-motion: reduce)").matches;
+const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const nf = (n) => n.toLocaleString("en-US");
+const mmss = (t) => Math.floor(t / 60) + ":" + String(t % 60).padStart(2, "0");
+const DD = "https://ddragon.leagueoflegends.com/cdn/16.18.1/img/";
+const icon = (src, alt, px) => `<span class="ic"><img src="${src}" alt="${esc(alt)}" width="${px}" height="${px}" loading="lazy" decoding="async"></span>`;
+{
+$("sbtog").addEventListener("click", (e) => {
+const b = e.currentTarget;
+b.setAttribute("aria-expanded", String(b.getAttribute("aria-expanded") !== "true"));
+});
+}
+const GAMES = [{"mid":"EUW1_7982999189","name":"Aatrox","champ":"Aatrox","team":100,"patch":"16.18","dur":1388,"pov":1,"start":9,"ch":"Kled Aatrox Syndra TwistedFate Pantheon Zilean JarvanIV Jax Fiora Rell","cn":"Kled|Aatrox|Syndra|Twisted Fate|Pantheon|Zilean|Jarvan IV|Jax|Fiora|Rell","d":"1 X 0.1.0 1111111111 848484841C848484841C 0 .........,5w FB 0.-9.-5 1111111111 000O0000000O0O000000 0 bj.w.3jj.7jj.jj.3j.w.7jj.bj.jj,zm FR 0.-4.-7 3322223322 5A6T2I6V2Q547h1A2Q3d 0 =.=.30.=.j.=.=.470.=.j,1i2 RT 0.-5.1 4443344433 bXdU9DcT6T9Tf05V9p6Y 0 b.=.=.7..=.=.=.b.=,1lp FB 0.-21.-16 4443344433 cIfe9WfWcqawfj6M3g7l 74 =.=.=.=.=.=.=.=.4b0.=,1xi X 0.-3.-5 5454454444 gdikeM0y3PeK3t9S5w1R 0 =.=.=.24~167.24.3.lw.=.=.dj,230 FR 0.-23.-1 5554455544 hS0rfN174ufR4jcx7p2w 0 =.wO.=.=.=.=.=.=.=.=,2co RB 0.3.4 5555455544 l7360C556F4S85289w4q 0 =.=.30m.=.=.263C.=.70x.=.=,2fy FR 0.4.-25 5555455544 o83H2b8CcS0Df84ddZ5G 0 =.=.=.=.=.=.=.=.=.d,2pf OD 0.-9.-16 6565555654 1D6U5z261N1Lgg67iV1l 0 2bR.=.=.24~1670.24O.=.=.=.=.2dj,2uq X 0.-23.0 6565556654 2g8K7c3O2v3Cik16102u 0 2b0R.=.=.=.=.=.=.470x.2b0R.=,2zc FB 0.-16.-21 6566566654 4q2q8261364siQ1C1w36 0 =.4wO.=.=.=.=.=.=.=.=,361 GM 0.-23.1 7676566664 9u4JareP7C55la2f293O 74 =.=.=.=.=.=.=.=.=.=,3ks FR 0.1.-2 7677666665 he0U7m6Can392W1u5V0l 0 =.44wOp.30m~1b.24~1670~1U.244Oo.2f63C.4lwq.70xR.=.20n,3y8 IB 0.-22.-21 8787677775 6L7acpc819709d6deJ8c 8 2~1gb0R.=.=.24~167~1U.24Oqo.=.=.=.=.20no,44i GB 0.-21.-19 8787677775 909RfU0y3o9TbP7Aj03A 0 =.=.=.2g7s.=.=.=.=.=.2d0no,465 IB 0.-23.-18 8787677775 909RfU0y3o9TbP7Aj03A 0 =.=.=.=.=.=.=.=.=.=,4f1 X 0.-23.-16 9887677775 e6i5iH1l7y1m1F4H3d4Z 0 =.=.=.2gg7s.=.63C8.wX.g70xR.2b0Rq.=,4jv FB 0.-18.-18 9888687875 gP2C7H3L8g3u2n7t465I 0 =.wh.6630m~1b.=.=.=.=.=.=.=,541 GB 0.-20.-9 a999688885 oSaTfjhtbN0Q9y0U1t1m 80 =.=.=.=.=.663C8.=.70G.244bRq.2~1g0no,5ha RB -17.2.5 a999688886 4vdL7G0V0z3uf8jx4k6I k 2db0~11.=.630v.2~14gg7s.24oh.=.=.=.=.=,5hm GM 0.-10.-7 a999688886 5lfY1w520W3MfqjP4Q75 k =.=.=.=.=.=.=.=.=.=,5qn X 0.-10.-8 b9a9689996 fKhY3E0E3v5ZhPkHec8h 8 =.=.=.~147Fs.=.=.=.=.44bRq.=,5yp IR 0.-9.-2 b9a9699996 mU3pgm2K589s2x1G0dg7 5c =.4w5h.=.=.4eoh.=.wkX.=.4b5~18.=,6ab FB 0.-23.-15 c9a9799997 tk8RkuaC0XbY4c3k1o2h 0 =.45h.=.=.d4eoh.=.=.=.=.20~1co,6he FR -24.-16.-6 caba799a97 u9dlpnk730er729R4P4L 3o =.=.=.=.=.=.kX.=.=.=,6mf X 0.-20.-9 caba7a9aa7 4VgrpX7B3LgFlT40j562 45 b0x5~11.=.30iv~1r.67FKs.d4e9h.=.=.d70G.=.20~1c9,6py FR -24.2.-15 caba7a9aa7 5dgI1f1q4ahTmb4hkE6r 3l =.=.=.=.=.=.=.d470G.=.=,73e IR 0.-19.-1 caba7aaaa7 gF1I8l59262wy88W1G54 8 =.4L5h.=.g67FKs.ex9h.3Ci8~12.=.=.b5~18u.2d0~1c9,7eq GB 3.-14.-23 caca7baab8 is4QbQ6r3Rcm4w0u8k8m 4 =.=.=.=.=.=.lLkX.7p0xG.=.=,7qj FB -1.-7.-6 cbcb7bbab8 6O837Rcg67eXfuaxoMev 1 lbx5~11.=.63iv~1r.=.=.=.=.=.=.=,7rr GB 0.-23.-20 cbcb7bbab8 6O837Rcg67eXfuaxoMev e9 =.=.=.=.=.=.=.=.=.=,7yp FB -3.-2.-11 cbcb7cbbb8 7NevaI1n97hclYhtql5f ew =.=.=.lg67FKs.=.=.=.=.=.2f0~1cn9,80j RT -6.-8.-15 dbcb7cbbb8 7NevaI1n97hclYhtql5f 7s =.=.=.=.=.=.=.=.=.=,812 IR 0.1.-5 dbcb7cbbb8 dJl5hY1G9yhumghMqD5K 7s =.=.=.=.=.=.=.=.=.=,82q OH 0.-1.-5 dbcb7cbbb8 dJl5hY1G9yhumghMqD5K 8w =.=.=.=.=.=.kEX.=.4bL5~18u.=,87y X 0.-8.-16 dbcb7cbbb8 eDlUl537aJ1n1Ilf4471 8w =.=.=.=.=.3~22~1z8.=.=.=.=,8cy FR 0.-11.-17 dbcb7cbbb8 fF4NlX5wc01V13oQ5k7X 0 =.44lL5h.=.=.=.3~1z8.=.=.=.=,8j6 OD 0.2.-10 ecdc8cbbc8 vt79wkoIgx2A3arDdx8g rs =.=.=.=.=.=.=.=.bL5~18qu.=,8oz IB 0.0.-16 ecdc8cbbc8 yX7MAZ192G3c3Md62S9a dk b5~1y~11.=.=.g7FKZs.lex9h.=.=.47x~19G.=.=,90q FB 0.-10.-4 ecdc8cccc9 1Z0BbV435h7792hz6ucf 0 bO5~1y~11.5Eh.3HAv.=.=.=.=.7zG.=.=,9b7 IB 0.-7.-24 ecec8dccd9 3B3Gfk9c7r9gdt2VfAe0 0 =.=.=.=.=.=.=.=.=.=,9d9 CT -11.-21.-6 ecec8dccd9 3V3ZlriJbSbddM3pfT0g 0 =.=.=.=.=.=.=.=.=.f~1cnk9,9dr IB 0.-10.-24 ecec9dccd9 3V3ZlriJbSbddM3pfT0g ao =.=.=.=.=.=.=.=.=.=,9fc FR 0.-8.-22 ecec9dccd9 5carn5m4dCcQe53I260I ao =.=.=.=.=.=.=.=.lbL5~18qu.=,9o2 X 0.0.-15 fdfdaeccda 8WfouHpuif4L0U4D1u3Z 1s =.=.3HHAv.=.e~1y9h.ff3~1z8.lkEX.=.5~18Eu.=,9qe FR 0.4.-11 fdfdaeccda 9S1wbArK0M51194S1J4P 0 =.5~1oEh.=.~167FK~1UZs.=.=.=.=.=.=,a80 GT 0.-9.-25 fefdaedcda 3SgzjI7P24aKa34s1D7z ap lbO5~1y~11.=.=.=.le~1y9h.=.=.47zG.5~18qEu.=,ajr GB 0.-21.1 fegdbedcea eIzluMhp8TcibB606h9N 2o =.=.=.=.=.=.=.=.=.="},{"mid":"EUW1_7983126574","name":"Dr. Mundo","champ":"DrMundo","team":100,"patch":"16.18","dur":1598,"pov":1,"start":16,"ch":"Zaahen DrMundo Fizz TwistedFate Janna Quinn Qiyana Lissandra Lucian Milio","cn":"Zaahen|Dr. Mundo|Fizz|Twisted Fate|Janna|Quinn|Qiyana|Lissandra|Lucian|Milio","d":"b4 FB 0.-22.-16 1111111111 000O0005000000000500 0 aj.t.3jj.7jj.jj.bj.tj.3jj.7jj.jj,vp FR 0.-23.-18 1322222222 1K5s3o4x2v3I4a4I2H2U 0 =.=.3j.7..=.=.=.7j.,1c3 GB 0.-21.-15 3442244322 6jd68X2N2h93ci9h1u1A 0 a.=.3.2~167.1j.b.=.3.47jp.d,1eg CB 0.-15.-9 3443244322 6Adnak3W3t9kcz0h1L1U 0 fa.=.=.=.1.=.=.310.=.=,1ey RB -18.-2.1 3443244322 6Adnak3W3t9kcz0h1L1U 0 faj.=.=.=.=.=.=.=.=.=,1hc X 0.-1.-25 3443244422 1cfaaA9t4Y9AdN15212v 74 =.=.=.=.=.=.=.=.47p0.=,1ov FB 0.-7.-8 4444344422 2E1m15d46j3q1C4l0P3x 0 =.~1gt.231.=.=.4b0.ltj.=.=.=,229 IR 0.-15.-23 5554354533 7w5Y5R1x0p7w598N5l6h 0 fa.=.=.2g~167~1P.2~1d1.=.=.=.=.=,2dx RB -10.-25.-2 5564455533 9S9fajct9Qcc9h0X0f1b 0 =.=.=.=.=.=.lt.~1X6310.70q.d6,2gs FR 0.-9.-14 5565465633 a9cEgecJa9e53T340w1u 1s =.=.=.24g~167~1P.=.=.4lt.=.=.=,2qy GB 0.-21.-22 6565465643 cQfX25997voi577R3P2S 1 =.=.2~1E310.=.2~1d1p.=.=.=.=.=,2ua IR 0.-20.-24 6565475643 d6gd2la28ooS5n8Z4x3R 1 2f4a0.=.=.=.=.=.=.=.=.=,32j FB 0.-20.-3 6666475653 1XiK9BgZak2O8G1V7o21 0 =.=.=.=.=.244lb0.=.310~12.=.~1dd6,3o1 IR 0.-15.-1 7777486764 7irh7J2m1rcRdr8oeD6i 0 =.=.2~1E6310.27~1Is.~1d1peo.=.=.=.=.~1dd6o,3yg ST 0.-1.-16 7777486864 a2v9a28g50gznEge1j1q g =.=.=.=.=.=.=.=.70~19q.~1d6no,40z PT 0.-1.-17 7787486864 bgvubH9L1phto4i02Z1R 0 =.=.=.=.~1d1ppeo.=.=.3108~12.=.=,43a OG 0.3.-6 8787486864 byywgQaz1MiRoM3M4t2e 1s =.=.=.=.=.=.244ty.=.=.=,4b2 X 0.-9.-14 8888496864 3sBYj4ds3f4f6x6O6f3r 0 4a05.=.=.=.=.2by0R.=.=.=.=,4i1 FR 0.-15.2 8888497974 4B0FdugA5paD8Sag7W5l 0 =.ftY.2~1E310~1V.=.=.=.=.=.=.=,4l8 GB 0.-11.-23 8888597975 5J0VeoiT5JaT9Eaw9560 0 =.=.=.=.=.=.=.=.=.=,4vv IR 0.-10.-19 8888597975 3453hy278s3kcqeY3530 0 d4a05.=.=.2~147~1Is.=.24b0~13.=.=.~1s70~19q.no~1b,51k PM 0.-7.-18 9898597975 4h79mO3L995xcZfx3E4I 1s =.=.=.=.=.=.=.=.=.=,56u FB 0.-18.-2 99995a7985 6ya5nr7GaX6udBio5B5v 0 =.=.2310~17.=.1peo~1b.244b0~13.=.=.=.=,5pj FR 0.-9.2 9a995b8a86 70iK9oap6G7Ula8C1v41 0 a0x5.fY.=.4~147~1Is.=.=.=.310~23~12.2gg70r.o~1a,67h OD 0.0.-5 aa995b8a96 cBpZ5P3f2PhW212t7J3S 0 =.=.26310~17.67Ks.d1peo~1b.=.t8c.31p0~1e.=.po~1a,6b6 GB 0.-15.-21 baa95b8b96 ekrJ7G693uit3K4E8l5d 0 =.=.=.=.=.=.=.=.=.p9~1a,72y FB 0.1.-19 bbaa7c9b97 077A78a98Uhnivb77bcc 1 ga0x5R.f5~1mY.6631m~17.~1667FKs.1en9~1b.24b0~1J~13.8c.=.g7~1ur.=,7dd IR 0.-9.-16 bbbb7caba7 22aYaHjK2C5s0ri1a896 78 =.=.=.=.1e9~15.2b0B~13.y8c.=.=.689~1a,7gi RB 0.1.-10 cbbb7caba7 2lbVb1r15O6A1zkrbg3l 78 =.=.=.=.=.=.=.=.=.=,7u1 FB 0.-9.-19 ccbb8daca8 bWhBfM0pbZ458LaGeW6Q 0 =.=.=.gg7FKZs.=.2lb0B~13.=.631~1en.gg7~1ur.=,891 X 0.-10.-4 cccc8daca8 1pmHu1dg4jay4Gik2L20 1s a05G.=.H1~1Qm~17.=.1e~1A9~15.=.4y8c.31~1en~1p.7r~1q.d689~1a,89u OH 0.-10.-6 cccc8daca8 1Kn20Fe24NaS507n4J2t 1s =.=.=.=.=.=.=.=.=.=,8d3 X 0.-8.-5 cccd8dacb8 2Ank0Xll5dba5j7F642U w =.=.=.=.=.=.=.=.=.=,8ji FR 0.1.-24 cccd8dacb8 6Uad46oJ6qc09L8Z8w47 w =.d~1M5~1mY.=.=.=.=.=.=.=.=,8oh OD 0.1.1 ddcd8dbdb8 apeG4Isn7McCbRdGb34Z 0 =.=.=.=.=.=.=.=.=.=,8ts IB 0.-7.-12 ddcd8ebdb8 b2gw8FxF95fzcOejbL5T 0 =.=.=.=.=.=.=.=.=.=,9h3 GM -13.-5.-22 ddde8ecec9 hD4t2c4k5q70l51V2w3h 5 =.T5YN.61m~17I.g7FKZ~1Bs.d1e~1A9~15.2l~14bB~13.=.31~1eiD.47~1or~1q.6n89~1a,9jz GM 3.-16.-7 ddde9ecec9 096v2sbJ7g7gll2c2M3E 1w aL05G.=.=.=.=.=.=.=.=.=,9m9 GM -11.-9.-3 ddde9fcec9 0r6N2Lc17G8flE2u3a4u 90 =.=.=.=.=.=.=.=.=.=,9n4 GM -10.-10.-6 ddde9fcec9 35eB35nTa99nlY6J3u5L 90 =.=.=.=.=.=.=.=.=.=,a1y FB 0.-3.-4 eedeafceca 1Vpeb8btdQ1h4P9m361M 0 4aL05G.=.=.7FK~1uZ~1Bs.1en~1A9~15.2bQB~13.J8c.=.447~1or~1q.n89~1b~1a,agw FB -22.-12.-10 efdeafceca 5Jv1nggwgR8tblfobO4y 0 =.=.=.=.=.=.=.=.=.=,ak8 FB 0.-12.-14 efefafceda 9jA9t7jqj393bVjycn5n 1s =.=.=.=.=.=.=.=.=.=,b8q RT -2.0.5 ffefbgcfda 666a93845O7e62829R3a 0 aL5qG.5~1iYN.H1m~17~1pI.7FK~1FZ~1Bs.61e~1R9~15.2~1sbQB~13.44J8c.1~1eiD~1r.7~1J~1or~1q.89~15~1a,bek PM -10.-4.5 fgefbgcfdb 82839Gcg7k9o6Ffrau5G 2s =.=.=.=.=.=.=.=.=.=,bgq FR 0.-23.-13 fgefcgcfdb e6eHa2mIcz9K71gUaR6c 9w =.=.=.=.=.=.=.=.~1s7~1J~1or~1q.=,c0n FR 0.-4.-12 ggegcgdfdb 504e0Md28Y33fXoO6X3g 0 4a5EG.O5~1iYN.1m~17I~20.~14~1GFK~1FZ~1Bs.1ei~1R9~15.2bQB~1f~13.=.=.=.689~15~1a,c3z GT 0.-7.-12 ggegcgdfdb 7H4x16fU9q4F2Y1J4R0u 0 =.=.=.=.=.=.J~1J8c.61~1eAD.7p~1Hr~1q.~1d689~15~1a,cbr GM -20.-13.-21 ggfgcgdfdb 9LcJ5utMeb6Y4k2F3J1P gw =.=.=.=.=.=.=.=.=.="},{"mid":"EUW1_7983170888","name":"Volibear","champ":"Volibear","team":200,"patch":"16.18","dur":2357,"pov":6,"start":20,"ch":"Gangplank Aatrox Sylas Jhin Zoe Ryze Volibear Annie Qiyana Nautilus","cn":"Gangplank|Aatrox|Sylas|Jhin|Zoe|Ryze|Volibear|Annie|Qiyana|Nautilus","d":"6c FR 0.-23.1 1111111111 000O000O00000O000000 0 aj.w.3jj.a.jj.3jj.t.3jj.40.jj,xc FB -17.-18.4 1322223222 2N5D3r5t2W4l6P4Z2t2I 0 =.=.3j.=.=.=.=.3.=.j,1do SB 0.2.0 4433344433 8XbP1ibA67bMdh2u885Y 0 a.=.31.=.=.=.=.310.=.,1rf ST -12.-25.-2 4443344444 aSeN3F158ZeCfO62irbK 0 =.=.=.44aj..3.=.=.=.=,1xu FR 0.3.-1 4443454444 3G0B7h4yahnfna1Fjo1s 0 4a0.wy.=.=.=.=.=.6310.4l0.df,272 X 0.-6.-14 5454454444 7m3Aaz8Y1adtrZ3p1X2P 0 =.=.=.=.21.31C.=.=.24l0.=,2fg FB 0.-16.3 5554465544 a772eH0Y2yhh125t4f47 0 =.=.=.ajp~1t.=.=.d4t~19.=.=.=,2u8 PM 0.3.-5 6664576655 etcy4t8a6BmT5J5P8z6K e8 =.=.26310.=.=.=.=.26310.=.2df,34c PM 0.-9.-18 6665576655 1ff96siZaW3d73943122 0 4a0~19.=.=.ap~1t.=.31C~1K.=.=.24y0.=,35u FR 0.-8.-15 6665576655 1wfq6Jjg1A3OcubL3i2m g =.=.=.=.18.=.=.=.=.=,3iw X 0.3.-20 7775576765 aBkq9J2Y578agVfz7V41 w =.=.=.2aq~1t.18o.231C~1K.=.=.=.=,3oj FB 0.-21.-20 7775577765 d6nqaR3R6f3U1rjv9n4L 0 =.=.=.=.618o.=.44tx~19.=.=.=,4al X 0.-3.4 8886688875 a6uX5S9X78ec8U7dgt1T 0 a0~19q.=.2310~1p.=.=.=.=.66310m.244y0.2dfTp,4ez PM 0.-3.-2 8886688875 bUvC8BaA8AeZ0u7Q1G2F 0 =.=.=.=.=.=.tz.=.20c.2dfTpo,4km FR 0.-19.1 8886798875 dbxDcgdD9zhO1k8m2c3j 0 =.=.=.=.=.=.=.=.=.=,4vg PM 0.-11.-4 8887798876 iiB77u1ebql06vbr944P 0 =.=.2T310~1p.2gau.=.=.=.=.=.=,4y8 GM -24.-21.-12 8897798886 ixBQ931Hc4lp6KbG9x58 0 =.=.=.=.=.=.=.=.=.=,59f FB 0.-12.0 9897799986 4yEQ200O3S2ucD9zlM7l 0 2a0r.=.310k~1p.2ggau.618o~1b.231CM.=.6310m~12.=.=,5k2 FR -14.-10.-1 a9978a9986 8Z1q5e3m8u6hgKc11z1z 0 =.wkc.310~1p.=.=.=.=.=.2y0c.2ffTno,5wa FR 0.-14.-1 a9988a9a96 fAdCbE7IcD2M2ulOa83t 4 =.kc.=.=.=.2631CM.t5z.6310~12.y0c.=,65c GT 0.-11.-10 ba988b9b96 hPm10Uad7Z7R6j5IfX3P 40 =.=.31n~1p.=.66189~1b.=.5z.6310P.=.=,6jl FB 0.1.3 baa88caba7 5t3odso8aA5E2t8Peh9M 1 2a0r~1f.dkqc.=.ggau.=.631mCM.5~1mz.=.44y0c.=,74z OD -19.-1.-8 cbb99caba7 dsd19k9vl1aR9RdJ2wdg 0 =.=.31D.gga~1uu.=.=.=.=.0Jc.=,769 IR 0.-18.-25 cbb99caba7 dsd19k9vl1aR9RdJ2wdg 0 =.=.=.=.=.=.=.=.=.=,7fl FR 0.-7.-7 cbba9dbba8 hp3FaycP0rdCexlV6ufw 0 =.Okqc.=.=.61p89v.=.=.=.=.=,7on OH 0.-11.-11 cbba9dbbb8 6y9rfd2I2w2NkTor4Z5H 8 2la0r~1f.=.=.ggae~1uu.=.31mC~12M.=.=.0J8c.2fSo,7ys FB 0.-2.2 ccba9dbcb8 7LiJ575K0nej4ryt8eah g =.=.31iD.=.1i89v.=.d~1M5~1mz.=.=.=,8bi GB -9.-17.-15 ccca9dccc8 bPbJ9Zcu2wgB9IIGjW4k f5 =.khc.=.=.=.=.=.=.=.5So,8c3 GB -1.-9.-5 ccca9dccc8 bPbJ9Zcu2wgB9IIGjW4k e9 =.=.=.=.=.=.=.=.=.=,8sb FR 0.-12.-2 dddbaeccc9 8Ooav57hdF0MbyKx0e79 80 2arV.=.=.aeWu.1ii89v.31mM.=.310PA.y0J8c.=,91c X 0.-15.-1 eddbaecdc9 kuxgzBaC3c1Vh58A28a8 0 =.=.=.=.=.=.=.=.=.=,969 FB 0.-14.-5 edebaecdc9 l4BZHgeh4Z4O399z3Q0p hs =.=.=.=.=.=.5zN.=.=.dp5S9,9n1 GB -25.4.-10 eeebaeddd9 6k9Z37i3904g9Qbl9C2u 0 24ar~1fV.Lkqhc.31iD~10.=.=.631mM.=.=.=.=,9nt IR -13.-24.-9 eeecbeddd9 12bQ9skBb14Dadd6an30 76 =.=.=.=.=.=.=.=.=.=,9pz GT 0.-17.2 eeecbeddd9 1jcs9JkSbqdlr4fEc44a 76 =.=.=.=.=.=.=.=.=.=,9qx IR 0.-21.-1 eeecbfddda 1jcs9JkSbqdlr4fEc44a m6 =.=.=.=.=.=.=.=.=.=,9se RB 0.-13.4 eeecbfddda 4Bd8ap1fcfm7Htoz487p m6 =.=.=.~14aeWu.=.=.=.=.44y0J8c.=,9ta OD 0.-17.1 eeecbfddda 4Bd8ap1fcfm7Htoz487p m7 =.=.=.=.=.=.=.=.=.f5nS9,9x3 SB 0.-6.-18 eeecbgddda 5adHaY1Ncpp8LFrS5v1L m7 =.=.=.=.=.=.=.=.=.=,a89 FR 0.-3.-6 eeecbheeda 6u4meL53fdlo5b222n2m 0 =.lLkqhc.=.=.=.31m~12M.T5~1jzN.HH1PA.y0Jq8c.=,ahw RB -7.2.3 eefcbheeda a16Nhi7YgEmh6I4b4e3O 0 =.=.=.=.=.=.=.=.=.=,ays FB 0.-14.-9 gfgdcheeeb rbnbuMk1551c2pbAhv1p 82 =.kEhc.=.=.1p89v~1k.1~1lmM.dT5~1jzN.=.=.~1Sf5nS9,b44 GB -11.0.4 gfgecheeeb AikSD31c7i1O4M0t0X2h ay 2aBrV.=.=.~1sl~14aeWu.=.=.=.1UPA.440J8~1nc.=,bjg FB 0.-24.-19 gfgedhfeeb 7q4NJh3knk5Xlb14504L e9 BkrV.k~1YEhc.=.=.=.=.=.=.=.=,bms FR 0.0.4 gfgedhffeb 26ajOrcEofaBnFje7Q5H i9 =.=.=.=.=.=.=.=.=.=,bsn X 0.-7.-4 gggedifffb 1tdS1b083jl5pC0Vco6w 4c =.=.1iDI~10.4aeQWu.ii89v~1k.=.=.H1UPA.=.=,cfu PB 0.4.-13 hggedigffb 9Klq5f4e7I5teV3NlfbF 0 =.=.=.=.=.H1~1lmM.5n~1jz~1LN.=.=.=,dfh IB -24.-11.4 hhhfeiggfc 286IvR8gjJ4d9Etvea4E 0 ~1s~14BkrV.k~1o~1vEhc.=.aeQW~1fu.=.HH~1lmM.5~1i~1jzN.=.40J~1J8~1nc.5~1wS9,dft IB -8.-23.-8 hhhfeiggfc 286IvR8gjJ4d9Etvea4E 0 =.=.=.=.=.=.=.=.=.=,emc PM 6.3.-14 iiigekhhgd 8dqV8IbCa67fex938W7D e8 QBkrV.=.1~1hDI~1C~10.aeQ~1JW~1fu.A89v~1k.H~1lmUM.5~1i~1jz~1WN.UPAI.J8~1D~1nc.d5~1wS9,ezf PM 0.0.-16 iiihfkhhhe apuDafi6d1kMmg7GeF6W 4 =.=.=.~1saeQBWu.=.=.=.6UPAI.=.dT5~1wS9,f8k PT -12.-4.-22 jiihfkhihe mOz5b95Yg1lVqRcg4J8f w =.=.=.=.=.=.=.=.44J8~1D~1nc.=,fa0 PT 0.2.-13 jiihfkhihe sbzUembBmjmgsTjn58aL ma =.~1Hk~1vEhc.=.=.=.=.=.=.=.=,fcn PT 0.-4.-20 jiihfkiihe uh26g2cjo7mzzPnT5rbb my =.=.=.=.=.=.=.=.J~1t8~1D~1nc.=,fjv CT 0.-5.-11 kiihfkiihe K32Ymd7xpnnrK2tL1t5b re =.=.=.aeQBW~1uu.=.=.~1x5~1i~1jz~1NN.=.=.5~1wS~1L9,g55 FR 0.-19.-25 kiihfkiihe 702R8ue2eAEgcVq08Q8G 0 ~1GQBkrV~1O.~1x~1Hk~1vEhc.H~1hDI~1C~10.=.nA89v~1k.=.=.U~1VPAI.=.T5~1wS~1L9,h49 IR -5.-1.5 kiiigkiiif f9cBjx6ykOclm52f538S 0 =.=.=.eQBW~1Fu.=.~1h~1lmUIM.=.UPAI~1T.OJ~1t8~1D~1nc.=,hbc IB 0.-14.5 kiiigkiiif jv11lGh6nke7ol9h7AaS f6 =.~1x~1H5~1vEhc.=.=.=.=.=.=.=.=,hi5 GM -21.3.4 kiiigkiiif nT1Dtrikq4eJq9aY9p4v iq =.=.=.=.=.=.=.=.=.~1Z5~1wS~1L9,hj5 CM 0.-5.0 kiiigkiiif rp1WARiDsdf3qs3e9J4X iq =.=.=.=.=.=.=.~1hUPAI~1T.=.=,i1n GM 0.2.-15 kiiigkiiig wI573S5zvs9r4u5heb8d 8 =.=.~1hUDI~1C~10.LeQBW~1Fu.=.=.~1x5~1iz~1NN~21.=.O~1GJ~1t8~1D~1nc.=,i6r PT -20.2.-23 kiiihkiiig B2f6ao6cDAa45b5U1697 p4 =.=.=.=.=.=.=.=.~1GJ8~24~1D~1nc.="}];
+const ITEMS = "2031:Refillable Potion|1082:Dark Seal|1001:Boots|1056:Doran's Ring|1036:Long Sword|3047:Plated Steelcaps|1052:Amplifying Tome|1086:Doran's Bow|3158:Ionian Boots of Lucidity|3867:Bounty of Worlds|1120:Doran's Helm|1055:Doran's Blade|6699:Voltaic Cyclosword|1028:Ruby Crystal|3009:Boots of Swiftness|1029:Cloth Armor|1042:Dagger|6610:Sundered Sky|3108:Fiendish Codex|2003:Health Potion|3111:Mercury's Treads|1037:Pickaxe|3020:Sorcerer's Shoes|3067:Kindlegem|3866:Runic Compass|2022:Glowing Mote|3133:Caulfield's Warhammer|3508:Essence Reaver|6672:Kraken Slayer|1102:Gustwalker Hatchling|6697:Hubris|4005:Imperial Mandate|1101:Scorchclaw Pup|3044:Phage|2020:The Brutalizer|3078:Trinity Force|3137:Cryptbloom|3036:Lord Dominik's Regards|3070:Tear of the Goddess|3152:Hextech Rocketbelt|6333:Death's Dance|3008:Gluttonous Greaves|6631:Stridebreaker|1058:Needlessly Large Rod|3157:Zhonya's Hourglass|2520:Bastionbreaker|3032:Yun Tal Wildarrows|2019:Steel Sigil|6657:Rod of Ages|3742:Dead Man's Plate|2021:Tunneler|3118:Malignance|3031:Infinity Edge|3077:Tiamat|3190:Locket of the Iron Solari|1033:Null-Magic Mantle|3089:Rabadon's Deathcap|6673:Immortal Shieldbow|3046:Phantom Dancer|6692:Eclipse|3084:Heartsteel|3124:Guinsoo's Rageblade|8010:Bloodletter's Curse|3748:Titanic Hydra|3802:Lost Chapter|6698:Profane Hydra|1038:B. F. Sword|6617:Moonstone Renewer|1043:Recurve Bow|3100:Lich Bane|3074:Ravenous Hydra|3057:Sheen|6620:Echoes of Helia|4642:Bandleglass Mirror|2525:Protoplasm Harness|1004:Faerie Charm|2503:Blackfire Torch|6670:Noonquiver|1011:Giant's Belt|2139:Elixir of Sorcery|3065:Spirit Visage|3075:Thornmail|4628:Horizon Focus|2522:Actualizer|3066:Winged Moonplate|6696:Axiom Arc|3123:Executioner's Calling|3145:Hextech Alternator|6675:Navori Flickerblade|4630:Blighting Jewel|1018:Cloak of Agility|3134:Serrated Dirk|3086:Zeal|3156:Maw of Malmortius|3109:Knight's Vow|2138:Elixir of Iron|3071:Black Cleaver|3024:Glacial Buckler|3114:Forbidden Idol|3302:Terminus|4633:Riftmaker|6694:Serylda's Grudge|1026:Blasting Wand|3094:Rapid Firecannon|2140:Elixir of Wrath|3033:Mortal Reminder|3144:Scout's Slingshot|3035:Last Whisper|3803:Catalyst of Aeons|3211:Spectre's Cowl|1031:Chain Vest|3143:Randuin's Omen|6695:Serpent's Fang|6690:Rectrix|2420:Seeker's Armguard|3222:Mikael's Blessing|1006:Rejuvenation Bead|4629:Cosmic Drive|3051:Hearthbound Axe|3113:Aether Wisp|3082:Warden's Mail|1027:Sapphire Crystal|3155:Hexdrinker|1057:Negatron Cloak|4645:Shadowflame|6665:Jak'Sho, The Protean|3003:Archangel's Staff|2508:Fated Ashes|3814:Edge of Night|3340:Stealth Ward|2055:Control Ward|3364:Oracle Lens".split("|").map((s) => { const k = s.indexOf(":"); return [+s.slice(0, k), s.slice(k + 1)]; });
+const B62 = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
+const d62 = (s) => [...s].reduce((n, c) => n * 62 + B62.indexOf(c), 0);
+const itemName = new Map(ITEMS);
+const dec = (x) => {
+const o = [];
+for (let i = 0; i < x.length;) {
+if (x[i] === "~") { o.push(ITEMS[d62(x.substr(i + 1, 2))][0]); i += 3; } else o.push(ITEMS[B62.indexOf(x[i++])][0]);
+}
+return o;
+};
+for (const g of GAMES) {
+g.ch = g.ch.split(" "); g.cn = g.cn.split("|");
+let prev = [];
+g.d = g.d.split(",").map((s) => {
+const [T, c, off, L, G, dead, I] = s.split(" ");
+const t10 = parseInt(T, 36);
+const items = I.split(".").map((x, i) => (x === "=" ? prev[i] : dec(x)));
+prev = items;
+return { t: Math.round(t10 / 10), c, f: off.split(".").map((o) => t10 + +o), lv: [...L].map((x) => parseInt(x, 36)),
+gold: G.match(/../g).map((x) => (x === "--" ? null : d62(x))), dead: parseInt(dead, 36), items };
+});
+}
+const FAMILY = { O: "var(--f-obj)", G: "var(--f-press)", I: "var(--f-press)", P: "var(--f-press)",
+R: "var(--f-move)", C: "var(--f-move)", S: "var(--f-move)", F: "var(--f-farm)", X: "var(--f-reset)" };
+const CALLS = {
+X: "resets", FB: "farms own blue-buff side", FR: "farms own red-buff side",
+IB: "invades enemy blue-buff side", IR: "invades enemy red-buff side",
+GT: "ganks top", GM: "ganks mid", GB: "ganks bot",
+PT: "fights top, own side", PM: "fights mid, own side", PB: "fights bot, own side",
+CT: "covers top", CM: "covers mid", CB: "covers bot",
+ST: "watches top side", SB: "watches bot side",
+RT: "rotates through top river", RB: "rotates through bot river",
+OD: "plays for Dragon", OG: "plays for Void Grubs", OH: "plays for Rift Herald", ON: "plays for Baron",
+};
+{
+const views = [["omni", "with no fog"], ["blue", "as the blue team saw it"], ["red", "as the red team saw it"]];
+const imgs = views.map(([k]) => $("m-" + k));
+const src = (g, k, n) => `review-data/img/${g.mid}/${k}_${String(n).padStart(6, "0")}.webp`;
+const player = $("player"), range = $("range"), ticks = $("ticks"), track = $("track"), builds = $("builds");
+let gi = 0, di = GAMES[0].start, req = 0, trackW = 0, loadT = 0;
+const live = $("p-live");
+const warm = (g, j) => { const d = g.d[j]; if (d) views.forEach(([k], x) => { new Image().src = src(g, k, d.f[x]); }); };
+const fitThumb = () => { if (trackW) track.style.setProperty("--tw", (trackW / GAMES[gi].d.length) + "px"); };
+new ResizeObserver(([e]) => { trackW = e.contentRect.width; fitThumb(); }).observe(track);
+function drawTicks() {
+const g = GAMES[gi];
+ticks.innerHTML = g.d.map((d) => `<i style="--c:${FAMILY[d.c[0]]}"></i>`).join("");
+range.max = g.d.length - 1;
+fitThumb();
+}
+function drawBuilds(g, d, eager) {
+const lazy = eager ? "" : ' loading="lazy"';
+const side = (from, cls, label) => `<div class="bt ${cls}"><h4>${label}<span>HUD gold</span></h4>` + [0, 1, 2, 3, 4].map((j) => {
+const i = from + j, dead = d.dead & (1 << i), its = d.items[i] || [], gold = d.gold[i];
+return `<div class="bw${i === g.pov ? " me" : ""}${dead ? " dead" : ""}">`
++ `<span class="pc"><span class="ic"><img src="${DD}champion/${g.ch[i]}.png" alt="" width="28" height="28"${lazy} decoding="async"></span><em>${d.lv[i]}</em></span>`
++ `<span class="nm">${esc(g.cn[i])}<span class="sr">, level ${d.lv[i]}${i === g.pov ? ", the reviewed player" : ""}</span>${dead ? "<small> · dead</small>" : ""}</span>`
++ `<span class="sl">${its.length ? its.map((id) => `<span class="ic"><img src="${DD}item/${id}.png" alt="${esc(itemName.get(id) || "Item")}" title="${esc(itemName.get(id) || "")}" width="22" height="22"${lazy} decoding="async"></span>`).join("") : '<span class="none">No items</span>'}</span>`
++ `<span class="g">${gold == null ? "–" : nf(gold)}<span class="sr"> gold</span></span></div>`;
+}).join("") + "</div>";
+builds.innerHTML = side(0, "b", "Blue team") + side(5, "r", "Red team");
+}
+function head(g, d, j) {
+const t = mmss(d.t);
+const what = $("p-what");
+what.textContent = "";
+const tm = document.createElement("time"), b = document.createElement("b"), s = document.createElement("span");
+tm.textContent = t; b.textContent = g.name; s.textContent = CALLS[d.c];
+what.append(tm, " ", b, " ", s);
+$("p-sub").textContent = `Jungle · ${g.team === 100 ? "blue" : "red"} side · decision ${j + 1} of ${g.d.length}`;
+$("call").style.setProperty("--fc", FAMILY[d.c[0]]);
+range.setAttribute("aria-valuetext", `${t}, ${g.name} ${CALLS[d.c]}. Decision ${j + 1} of ${g.d.length}`);
+}
+function show(j, eager, say) {
+const g = GAMES[gi], d = g.d[j];
+di = j;
+head(g, d, j);
+if (say != null) live.textContent = say + range.getAttribute("aria-valuetext");
+$("count").innerHTML = `<b>${j + 1}</b> / ${g.d.length}`;
+$("p-mid").textContent = g.mid;
+$("p-patch").textContent = g.patch;
+$("p-open").href = `macro.html#/${g.mid}/${j}`;
+$("pov-blue").hidden = g.team !== 100;
+$("pov-red").hidden = g.team !== 200;
+$("pov-blue").textContent = $("pov-red").textContent = `${g.name}'s team`;
+range.value = j;
+ticks.querySelector(".on")?.classList.remove("on");
+ticks.children[j]?.classList.add("on");
+$("prev").disabled = j === 0;
+$("next").disabled = j === g.d.length - 1;
+drawBuilds(g, d, eager);
+if (!eager) return;
+const t = mmss(d.t), urls = views.map(([k], x) => src(g, k, d.f[x]));
+const mine = ++req;
+clearTimeout(loadT);
+loadT = setTimeout(() => { if (mine === req) player.classList.add("loading"); }, 120);
+Promise.all(urls.map((u) => { const im = new Image(); im.src = u; return im.decode().catch(() => {}); })).then(() => {
+if (mine !== req) return;
+clearTimeout(loadT);
+player.classList.remove("loading");
+imgs.forEach((im, x) => { im.loading = "eager"; im.src = urls[x]; im.alt = `Minimap at ${t} ${views[x][1]}`; });
+warm(g, j + 1); warm(g, j - 1);
+});
+}
+drawTicks();
+show(di, false);
+$("scrub").hidden = false;
+range.addEventListener("input", () => show(+range.value, true));
+$("prev").addEventListener("click", () => di > 0 && show(di - 1, true, ""));
+$("next").addEventListener("click", () => di < GAMES[gi].d.length - 1 && show(di + 1, true, ""));
+for (const b of $("games").querySelectorAll("button")) {
+b.addEventListener("click", () => {
+const n = +b.dataset.g;
+if (n === gi) return;
+gi = n;
+for (const o of $("games").querySelectorAll("button")) o.setAttribute("aria-pressed", String(o === b));
+drawTicks();
+show(GAMES[gi].start, true, `${GAMES[gi].name} game. `);
+});
+}
+$("btog").addEventListener("click", (e) => {
+const b = e.currentTarget;
+b.setAttribute("aria-expanded", String(b.getAttribute("aria-expanded") !== "true"));
+});
+}
+const SHOP = [{"t":10,"g":500,"r":null,"lv":1,"buy":[1101,3340],"held":[],"after":[1101],"via":0,"gone":[],"ob":[0,0,0,0],"src":"hud","opt":"ok","link":1},{"t":258,"g":1237,"r":null,"lv":4,"buy":[2021,2055],"held":[1101],"after":[1101,2021],"via":0,"gone":[],"ob":[0,0,0,0],"src":"hud","opt":"ok","link":6},{"t":375,"g":553,"r":null,"lv":5,"buy":[1036,2055],"held":[1101,2021],"after":[1036,1101,2021],"via":0,"gone":[],"ob":[1,0,0,0],"src":"hud","opt":"ok","link":11},{"t":435,"g":605,"r":null,"lv":6,"buy":[1036,2022,3364],"held":[1036,1101,2021],"after":[1036,1036,1101,2021,2022],"via":0,"gone":[],"ob":[1,0,0,0],"src":"hud","opt":"ok","link":13},{"t":579,"g":1222,"r":null,"lv":8,"buy":[6610,2055],"held":[1036,1036,1101,2021,2022],"after":[1101,6610],"via":0,"gone":[],"ob":[1,0,0,0],"src":"hud","opt":"norow","link":-1},{"t":753,"g":1496,"r":null,"lv":9,"buy":[3047,1036,2055],"held":[1101,6610],"after":[1036,1101,3047,6610],"via":0,"gone":[],"ob":[1,1,1,2],"src":"hud","opt":"ok","link":23},{"t":877,"g":null,"r":null,"lv":10,"buy":[2019,2022,2055],"held":[1036,3047,6610],"after":[2019,2022,3047,6610],"via":1,"gone":[],"ob":[1,1,1,2],"src":"rebuild","opt":"later","link":-1},{"t":902,"g":null,"r":[373,420],"lv":10,"buy":[1036],"held":[2019,2022,3047,6610],"after":[1036,2019,3047,6610],"via":0,"gone":[2022],"ob":[1,1,1,2],"src":"hud","opt":"ok","link":28},{"t":1073,"g":null,"r":[1374,1504],"lv":11,"buy":[1037,1036],"held":[1036,2019,3047,6610],"after":[1036,1036,1037,2019,3047,6610],"via":0,"gone":[],"ob":[1,1,1,2],"src":"hud","opt":"ok","link":37},{"t":1159,"g":723,"r":null,"lv":12,"buy":[6333,2055],"held":[1036,1036,1037,2019,3047,6610],"after":[3047,6333,6610],"via":0,"gone":[],"ob":[2,1,1,2],"src":"hud","opt":"ok","link":40},{"t":1252,"g":959,"r":null,"lv":12,"buy":[3123,2055],"held":[3047,6333,6610],"after":[3047,3123,6333,6610],"via":0,"gone":[],"ob":[2,1,1,2],"src":"hud","opt":"ok","link":45}];
+{
+const g = GAMES[0], st = $("strack"), foe = g.team === 100 ? 5 : 0;
+let sel = Math.max(0, SHOP.findIndex((s) => s.t === 1159));
+const gold = (s) => (s.g != null ? nf(s.g) : s.r ? nf(s.r[0]) + "–" + nf(s.r[1]) : "—");
+const kind = (s) => (s.g != null ? "exact" : s.r ? "estimated range" : "no HUD reading");
+const said = (s) => (s.g != null || s.r ? `${gold(s)} gold, ${kind(s)}` : "gold not read from the HUD");
+st.style.setProperty("--m", SHOP.length - 1);
+st.innerHTML = SHOP.map((s, i) => `<button type="button"${s.g != null ? "" : s.r ? ' class="est"' : ' class="nr"'} style="--x:${(s.t / g.dur * 100).toFixed(2)}%;--i:${i}" aria-pressed="false" tabindex="-1" aria-label="Shop at ${mmss(s.t)}, ${said(s)}"><i></i></button>`).join("");
+let tk = "";
+for (let m = 0; m * 60 < g.dur - 90; m += 5) tk += `<span style="left:${(m * 60 / g.dur * 100).toFixed(2)}%">${m}:00</span>`;
+$("sticks").innerHTML = tk;
+$("s-foe").innerHTML = [0, 1, 2, 3, 4].map((j) => icon(`${DD}champion/${g.ch[foe + j]}.png`, g.cn[foe + j], 36)).join("");
+const btns = [...st.querySelectorAll("button")];
+new ResizeObserver(([e]) => {
+const w = e.contentRect.width, gap = 28;
+if (!w) return;
+const x = SHOP.map((s) => s.t / g.dur * w);
+for (let i = 1; i < x.length; i++) x[i] = Math.max(x[i], x[i - 1] + gap);
+for (let i = x.length - 1; i >= 0; i--) x[i] = Math.min(x[i], i === x.length - 1 ? w : x[i + 1] - gap);
+btns.forEach((b, i) => b.style.setProperty("--x", x[i].toFixed(1) + "px"));
+}).observe(st);
+const items = (list) => (list && list.length ? list.map((id) => icon(`${DD}item/${id}.png`, itemName.get(id) || "Item", 36)).join("") : '<span class="none">Nothing yet</span>');
+const names = (list) => list.map((id) => itemName.get(id) || "Item " + id).join(", ");
+const n = (a, b) => `<span class="nw"><b class="tb">${a}</b><span class="sr"> for blue,</span><span aria-hidden="true">–</span><b class="tr">${b}</b><span class="sr"> for red</span></span>`;
+function render(i) {
+sel = i;
+const s = SHOP[i], next = SHOP[i + 1];
+btns.forEach((b, j) => { b.setAttribute("aria-pressed", String(j === i)); b.tabIndex = j === i ? 0 : -1; });
+$("s-t").textContent = mmss(s.t);
+$("s-who").textContent = `Jungle · level ${s.lv} · ${g.team === 100 ? "blue" : "red"} side`;
+$("s-g").textContent = gold(s);
+$("s-g").classList.toggle("nr", s.g == null && !s.r);
+$("s-gq").textContent = kind(s);
+$("s-gq").classList.toggle("est", s.g == null);
+$("s-obj").innerHTML = `Dragons ${n(s.ob[0], s.ob[1])}<span class="sep" aria-hidden="true">·</span>Void Grubs ${n(s.ob[2], s.ob[3])}`;
+$("s-held").innerHTML = items(s.held);
+$("s-buy").innerHTML = s.buy.map((id) => `<li>${icon(`${DD}item/${id}.png`, "", 36)}${esc(itemName.get(id) || "Item " + id)}</li>`).join("");
+$("s-after").innerHTML = s.after ? items(s.after) : '<span class="none">No later decision</span>';
+const notes = [];
+if (s.src === "rebuild") notes.push("<b>Not on the HUD reading.</b> This visit comes from the Review's shop rebuild.");
+if (s.via && next) notes.push(`After is what was held at the next visit, ${mmss(next.t)}.`);
+if (s.gone.length) notes.push(`${esc(names(s.gone))} ${s.gone.length > 1 ? "are" : "is"} gone by the next decision; this data records buys, not sales.`);
+$("s-note").innerHTML = notes.join(" ");
+$("s-note").hidden = !notes.length;
+const open = s.opt === "ok" && s.link >= 0;
+$("s-open").hidden = !open;
+if (open) $("s-open").href = `macro.html#/${g.mid}/${s.link}`;
+const why = { norow: "No model options for this shop: the Review could not rebuild it.",
+later: next ? `No model options in the Review for this visit: it shows the ${mmss(next.t)} shop at the next decision.` : "No model options in the Review for this visit.",
+none: "No model options for this shop: the model returned none." }[s.opt];
+$("s-noopt").textContent = open ? "" : why || "";
+$("s-noopt").hidden = open;
+}
+btns.forEach((b, i) => b.addEventListener("click", () => render(i)));
+st.addEventListener("keydown", (e) => {
+const k = { ArrowRight: sel + 1, ArrowDown: sel + 1, ArrowLeft: sel - 1, ArrowUp: sel - 1, Home: 0, End: SHOP.length - 1 }[e.key];
+if (k === undefined || k < 0 || k >= SHOP.length) return;
+e.preventDefault(); render(k); btns[k].focus();
+});
+render(sel);
+}
+if (!still && "IntersectionObserver" in window) {
+addEventListener("scroll", () => {
+const seen = new WeakSet();
+const io = new IntersectionObserver((entries) => {
+for (const e of entries) {
+const el = e.target;
+if (!seen.has(el)) {
+seen.add(el);
+if (!e.isIntersecting && e.boundingClientRect.top > innerHeight) el.classList.add("pre");
+else io.unobserve(el);
+} else if (e.isIntersecting) { el.classList.remove("pre"); io.unobserve(el); }
+}
+}, { rootMargin: "0px 0px -6% 0px" });
+for (const el of document.querySelectorAll(".reveal")) io.observe(el);
+}, { once: true, passive: true });
+}</script>
 </body>
 </html>

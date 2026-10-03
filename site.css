@@ -1,0 +1,113 @@
+/* Shared by every videns.gg page: one palette, one font, one header, one footer.
+   Pages link this first and keep only their own layout in their inline <style>. They must not
+   redefine anything here (tokens, .nav, .wrap, footer), or the tabs drift apart again. */
+
+/* Self-hosted so the face is there at first paint; `optional` never swaps fonts mid-read. */
+@font-face{
+  font-family:"Inter";font-style:normal;font-weight:400 900;font-display:optional;
+  src:url("fonts/inter-var-latin.woff2") format("woff2");
+  unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,
+    U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD;
+}
+
+:root{
+  /* Purple on near-black: the page and the header share one colour, surfaces step up from it,
+     and the only hue is purple (lighter for lines, deeper for gradients). Blue and coral are data:
+     wins and losses, never decoration. */
+  --bg:#0a090e; --bg-rgb:10,9,14;
+  --card:#14121a; --raised:#1c1924; --raised-2:#25212f; --sunk:#0e0c13;
+  --line:rgba(255,255,255,.08); --line-2:rgba(255,255,255,.14);
+  --text:#f6f4fb; --muted:#aaa5b8; --dim:#948ea3; --faint:#655f74;
+  /* "gold" is the historical name of the accent token; it is purple */
+  --gold:#b556ff; --gold-2:#9534e6; --gold-hi:#c77dff; --on-gold:#12051f; --gold-rgb:181,86,255;
+  --mark:#c77dff;                              /* lines that mark selection and focus */
+  --blue:#3fb4d8; --blue-rgb:63,180,216; --red:#f0707e; --red-rgb:240,112,126;   /* win and loss */
+  --blue-t:color-mix(in srgb,var(--blue) 72%,#fff); --red-t:color-mix(in srgb,var(--red) 72%,#fff);
+  --blue-d:color-mix(in srgb,var(--blue) 66%,#000); --red-d:color-mix(in srgb,var(--red) 70%,#000);
+  --win-bg:color-mix(in srgb,var(--blue) 14%,var(--card)); --win-slot:color-mix(in srgb,var(--blue) 28%,var(--card));
+  --loss-bg:color-mix(in srgb,var(--red) 12%,var(--card)); --loss-slot:color-mix(in srgb,var(--red) 24%,var(--card));
+  --slot:var(--raised-2); --remake-bg:var(--raised); --remake-slot:var(--raised-2);
+
+  /* Treatment: how the accent and the surfaces are drawn (a diagonal purple gradient). Pages use these
+     for their primary fills (buttons, accent pills, progress bars) and main containers. */
+  --fill:linear-gradient(135deg,#dcaaff 0%,#b556ff 48%,#6a1ccf 100%);
+  --fill-hover:linear-gradient(135deg,#e6c0ff 0%,#c06bff 48%,#7a2ae0 100%);
+  --fill-shadow:none;
+  /* a container's outline, when a style wants one, is an inset ring in --surface-shadow: a real border
+     would take width from the layout and reflow grids inside the container */
+  --surface:linear-gradient(160deg,#2a2040 0%,#17131f 45%,#100e15 100%); --surface-shadow:none;
+  --page-glow:none;
+
+  /* one radius scale: controls, cards, large blocks */
+  --r-sm:6px; --r-md:10px; --r-lg:14px;
+  --font:"Inter",ui-sans-serif,-apple-system,"Segoe UI",Roboto,system-ui,sans-serif;
+  /* Only for identifiers (match ids, token codes); every label and number is Inter. */
+  --mono:ui-monospace,SFMono-Regular,"Cascadia Mono",Menlo,Consolas,monospace;
+  --wrap:78rem; --pad:clamp(1rem,4vw,2.5rem);
+}
+
+html{background:var(--bg)}
+body{margin:0;background:var(--page-glow) no-repeat,var(--bg);color:var(--text);font-family:var(--font);
+  font-variant-numeric:tabular-nums;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}
+.wrap{width:100%;max-width:var(--wrap);margin:0 auto;padding-inline:var(--pad)}
+
+/* ---------- header: identical on every page ----------
+   <header class="nav"><div class="wrap">
+     <a class="logo" href="index.html" aria-label="Videns home">VIDENS<i>.</i></a>
+     <nav class="links" aria-label="Primary"> a.bc Home / Search / Review, the current one .cur + aria-current </nav>
+     <div class="tools"> this page's own header tools, optional </div>
+   </div></header>
+   Full width, three columns: the wordmark at the left edge, the links in the exact centre of the
+   screen whatever sits beside them, this page's tools at the right edge. */
+.nav{position:sticky;top:0;z-index:50;background:var(--bg);border-bottom:1px solid var(--line)}
+.nav .wrap{max-width:none;display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);align-items:center;
+  column-gap:1.75rem;min-height:66px}
+.nav .tools{grid-column:3;grid-row:1;justify-self:stretch;display:flex;align-items:center;justify-content:flex-end;min-width:0}
+.nav .links{grid-column:2;grid-row:1;display:flex;gap:1.9rem}
+/* The wordmark sets its own numeric style: Inter draws the dot wider under tabular-nums, so an
+   inherited value would move it by a couple of pixels from page to page. */
+.nav .logo{grid-column:1;grid-row:1;justify-self:start;font-size:1.5rem;line-height:1.3;color:var(--text);text-decoration:none}
+/* The wordmark, wherever it appears: Inter Black stretched to 118% wide, then leaned left (a retalic)
+   by 20.97deg, the slant the stretch gives the V's right stroke, so that stroke stands vertical and the
+   left one runs diagonal. It pivots at mid-height, so the lean overhangs the page margin as little at the
+   top as it shifts at the bottom. A transform takes no room in the layout: the right margin gives back
+   what it adds (VIDENS. is 3.96em wide, stretched +.71em, and the lean moves the dot .11em further right
+   at the baseline), so whatever follows keeps its gap. */
+.logo{display:inline-block;white-space:nowrap;font-weight:900;letter-spacing:-.04em;font-variant-numeric:normal;
+  transform:skewX(20.97deg) scaleX(1.18);transform-origin:0 55%;margin-right:.8em}
+/* the dot stays round: undo the stretch and the lean on it alone */
+.logo i{display:inline-block;font-style:normal;color:var(--gold);transform:scaleX(.8475) skewX(-20.97deg)}
+.nav .links a{padding:21px 0 19px;border-bottom:2px solid transparent;color:var(--muted);font-size:1rem;font-weight:600;
+  line-height:1.5;text-decoration:none;transition:color .2s}
+.nav .links a:hover,.nav .links a[aria-current=page]{color:var(--text)}
+.nav .links a[aria-current=page]{border-bottom-color:var(--mark)}
+@media(max-width:759px){
+  .nav .wrap{column-gap:1rem;min-height:54px}
+  .nav .logo{font-size:1.25rem}
+  .nav .links{gap:1.1rem}
+  .nav .links a{padding:15px 0 13px;font-size:.9375rem}
+}
+/* the narrowest phones: keep the centred links clear of the wordmark */
+@media(max-width:420px){
+  .nav .logo{font-size:1rem}
+  .nav .links{gap:.85rem}
+  .nav .links a{font-size:.875rem}
+}
+@media(max-width:380px){
+  .nav .logo{font-size:.9375rem}
+  .nav .links{gap:.75rem}
+  .nav .links a{font-size:.8125rem}
+}
+
+/* ---------- footer: identical on every page ---------- */
+.foot{border-top:1px solid var(--line);padding-block:2.5rem 3rem}
+.foot .wrap{display:flex;flex-wrap:wrap;align-items:center;gap:1.25rem 2.5rem}
+.foot .logo{font-size:1.25rem;color:var(--text);text-decoration:none}
+.foot nav{display:flex;gap:1.5rem;font-size:.9375rem}
+.foot nav a{color:var(--muted);text-decoration:none}
+.foot nav a:hover{color:var(--text)}
+/* the text always takes its own row under the logo and links; the padding, not a max-width, keeps lines
+   readable, because a capped width let the first paragraph squeeze in beside the links */
+.foot p{flex:0 0 100%;margin:.5rem 0 0;padding-right:max(0px,100% - 46rem);font-size:.75rem;line-height:1.7;color:var(--dim)}
+.foot p+p{margin-top:0}
+.foot code{font-family:var(--mono);font-size:.6875rem}
