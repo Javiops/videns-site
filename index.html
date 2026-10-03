@@ -3,6 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<script>/* the address stays clean (/search, never /search.html): GitHub Pages serves both */
+if (/^https?:$/.test(location.protocol) && location.pathname.endsWith(".html")) history.replaceState(history.state, "", location.pathname.slice(0, -5).replace(/index$/, "") + location.search + location.hash);</script>
 <title>Videns · See the whole game</title>
 <meta name="description" content="Look up any Riot ID in 17 regions, review challenger jungle games call by call, and see what high-elo players bought at the shop.">
 <meta name="robots" content="noindex">
@@ -25,14 +27,14 @@
 <a class="skip" href="#main">Skip to content</a>
 
 <header class="nav" id="nav"><div class="wrap">
-<a class="logo" href="index.html" aria-label="Videns home">VIDENS<i>.</i></a>
+<a class="logo" href="/" aria-label="Videns home">VIDENS<i>.</i></a>
 <nav class="links" aria-label="Primary">
-<a class="bc cur" href="index.html" aria-current="page">Home</a>
-<a class="bc" href="search.html">Search</a>
-<a class="bc" href="macro.html">Review</a>
+<a class="bc" href="/search">Search</a>
+<a class="bc" href="/draft"><span class="lw">Drafting tool</span><span class="ln">Draft</span></a>
+<a class="bc" href="/coach"><span class="lw">Post-game coach</span><span class="ln">Coach</span></a>
 </nav>
 <div class="tools">
-<a class="nq" href="search.html">
+<a class="nq" href="/search">
 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4.5 4.5"/></svg>
 <span>Search a player</span>
 </a>
@@ -44,7 +46,7 @@
 <div class="wrap hero-c">
 <h1 id="hero-title">See the whole game<span class="dot">.</span></h1>
 <div class="cta">
-<a class="btn" href="macro.html">
+<a class="btn" href="/coach">
 Open the Review
 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
 </div>
@@ -59,7 +61,7 @@ Open the Review
 </div>
 <div>
 <p class="sub">40 challenger jungle games, <strong>1,970 decisions</strong>. Each call shows the whole map, then what each team could see through the fog, with all ten builds and HUD gold beside it.</p>
-<a class="more" href="macro.html">Open the Review
+<a class="more" href="/coach">Open the Review
 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
 </div>
 </div>
@@ -122,7 +124,7 @@ Open the Review
 <li style="--c:var(--f-reset)"><i></i>Reset</li>
 </ul>
 <span class="meta"><span><span id="p-mid">EUW1_7982999189</span> · patch <span id="p-patch">16.18</span></span>
-<a class="open" id="p-open" href="macro.html#/EUW1_7982999189/9">Open this decision
+<a class="open" id="p-open" href="/coach#/EUW1_7982999189/9">Open this decision
 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a></span>
 </div>
 </div>
@@ -171,7 +173,7 @@ Open the Review
 <div><dt>After</dt><dd class="icons" id="s-after"></dd></div>
 </dl>
 <p class="snote" id="s-note" hidden></p>
-<a class="open" id="s-open" href="macro.html#/EUW1_7982999189/40">Open this shop in the Review
+<a class="open" id="s-open" href="/coach#/EUW1_7982999189/40">Open this shop in the Review
 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
 <p class="snote" id="s-noopt" hidden></p>
 </div>
@@ -201,7 +203,7 @@ Open the Review
 </div>
 <div>
 <p class="sub">Rank, recent games with Load more, season champion stats and a <strong>full scoreboard</strong> for every match. ARAM and Arena are first-class queues.</p>
-<a class="more" href="search.html">Open Search
+<a class="more" href="/search">Open Search
 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
 </div>
 </div>
@@ -262,15 +264,15 @@ Open the Review
 <div>
 <h3 class="k" id="reg-h">17 regions</h3>
 <div class="regs" id="regs" role="group" aria-labelledby="reg-h">
-<a href="search.html?region=euw">EUW</a><a href="search.html?region=eune">EUNE</a>
-<a href="search.html?region=na">NA</a><a href="search.html?region=kr">KR</a>
-<a href="search.html?region=br">BR</a><a href="search.html?region=lan">LAN</a>
-<a href="search.html?region=las">LAS</a><a href="search.html?region=jp">JP</a>
-<a href="search.html?region=tr">TR</a><a href="search.html?region=ru">RU</a>
-<a href="search.html?region=me">ME</a><a href="search.html?region=oce">OCE</a>
-<a href="search.html?region=sg">SG</a><a href="search.html?region=ph">PH</a>
-<a href="search.html?region=th">TH</a><a href="search.html?region=tw">TW</a>
-<a href="search.html?region=vn">VN</a>
+<a href="/search?region=euw">EUW</a><a href="/search?region=eune">EUNE</a>
+<a href="/search?region=na">NA</a><a href="/search?region=kr">KR</a>
+<a href="/search?region=br">BR</a><a href="/search?region=lan">LAN</a>
+<a href="/search?region=las">LAS</a><a href="/search?region=jp">JP</a>
+<a href="/search?region=tr">TR</a><a href="/search?region=ru">RU</a>
+<a href="/search?region=me">ME</a><a href="/search?region=oce">OCE</a>
+<a href="/search?region=sg">SG</a><a href="/search?region=ph">PH</a>
+<a href="/search?region=th">TH</a><a href="/search?region=tw">TW</a>
+<a href="/search?region=vn">VN</a>
 </div>
 <p class="hint">Pick one to open Search there.</p>
 </div>
@@ -284,11 +286,12 @@ Open the Review
 </main>
 
 <footer class="foot"><div class="wrap">
-<a class="logo" href="index.html" aria-label="Videns home">VIDENS<i>.</i></a>
+<a class="logo" href="/" aria-label="Videns home">VIDENS<i>.</i></a>
 <nav aria-label="Footer">
-<a href="index.html" aria-current="page">Home</a>
-<a href="search.html">Search</a>
-<a href="macro.html">Review</a>
+<a href="/" aria-current="page">Home</a>
+<a href="/search">Search</a>
+<a href="/draft">Drafting tool</a>
+<a href="/coach">Post-game coach</a>
 </nav>
 <p>Videns is an independent project, not endorsed by or affiliated with Riot Games. League of Legends is a trademark of Riot Games, Inc.</p>
 </div></footer>
@@ -390,7 +393,7 @@ if (say != null) live.textContent = say + range.getAttribute("aria-valuetext");
 $("count").innerHTML = `<b>${j + 1}</b> / ${g.d.length}`;
 $("p-mid").textContent = g.mid;
 $("p-patch").textContent = g.patch;
-$("p-open").href = `macro.html#/${g.mid}/${j}`;
+$("p-open").href = `/coach#/${g.mid}/${j}`;
 $("pov-blue").hidden = g.team !== 100;
 $("pov-red").hidden = g.team !== 200;
 $("pov-blue").textContent = $("pov-red").textContent = `${g.name}'s team`;
@@ -481,7 +484,7 @@ $("s-note").innerHTML = notes.join(" ");
 $("s-note").hidden = !notes.length;
 const open = s.opt === "ok" && s.link >= 0;
 $("s-open").hidden = !open;
-if (open) $("s-open").href = `macro.html#/${g.mid}/${s.link}`;
+if (open) $("s-open").href = `/coach#/${g.mid}/${s.link}`;
 const why = { norow: "No model options for this shop: the Review could not rebuild it.",
 later: next ? `No model options in the Review for this visit: it shows the ${mmss(next.t)} shop at the next decision.` : "No model options in the Review for this visit.",
 none: "No model options for this shop: the model returned none." }[s.opt];

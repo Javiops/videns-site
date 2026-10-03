@@ -1,0 +1,435 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script>/* the address stays clean (/search, never /search.html): GitHub Pages serves both */
+if (/^https?:$/.test(location.protocol) && location.pathname.endsWith(".html")) history.replaceState(history.state, "", location.pathname.slice(0, -5).replace(/index$/, "") + location.search + location.hash);</script>
+<title>Drafting tool · Videns</title>
+<meta name="description" content="Pick by win probability: expected win, worst reply and lane gold for every champion in the draft.">
+<meta name="robots" content="noindex">
+<meta name="theme-color" content="#0a090e">
+<link rel="preconnect" href="https://ddragon.leagueoflegends.com" crossorigin>
+<link rel="preload" href="fonts/inter-var-latin.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="site.css">
+<link rel="icon" href="favicon.ico" sizes="32x32">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="manifest" href="site.webmanifest">
+<style>
+/* Palette, font, header and footer come from site.css; these tokens are this page's own. */
+:root{--ad:#f0a35e;--ap:#8fa8ff;--tr:#ece9f5}
+*,*::before,*::after{box-sizing:border-box}
+html{scrollbar-gutter:stable}
+button,input{font:inherit;color:inherit}button{cursor:pointer}img{display:block}
+:focus-visible{outline:2px solid var(--mark);outline-offset:2px}
+[hidden]{display:none!important}
+.sr{position:absolute;width:1px;height:1px;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
+.dr{font-size:.875rem;line-height:1.45;padding-block:1.25rem 3rem}
+/* win probability */
+.wp{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:.75rem;max-width:34rem;margin:0 auto 1.25rem}
+.wp b{font-size:1.125rem;font-weight:800;min-width:3.6rem}
+.wp .pb{color:var(--blue-t)}.wp .pr{color:var(--red-t);text-align:right}
+.wpbar{position:relative;height:6px;border-radius:99px;background:var(--red);overflow:hidden}
+.wpbar i{position:absolute;inset:0 auto 0 0;background:var(--blue);transition:width .25s}
+.wpbar::after{content:"";position:absolute;left:50%;top:0;bottom:0;width:2px;margin-left:-1px;background:var(--bg)}
+/* layout */
+.layout{display:grid;grid-template-columns:minmax(0,31rem) minmax(0,1fr);gap:1.25rem}
+/* board */
+.board{display:grid;gap:6px;align-content:start}
+.bans{display:grid;grid-template-columns:1fr 6.5rem 1fr;align-items:center;margin-bottom:4px}
+.bset{display:flex;gap:3px}.bset.r{justify-content:flex-end}
+.bans .lbl{font-size:.625rem;font-weight:700;letter-spacing:.08em;color:var(--dim);text-align:center}
+.mid .role{display:grid;place-items:center;height:16px;color:var(--dim)}.mid .role svg{width:16px;height:16px}
+.slot .ic .ri{display:grid;place-items:center;width:100%;height:100%;color:var(--faint)}.slot .ic .ri svg{width:22px;height:22px}
+.ban{width:26px;height:26px;padding:0;border-radius:5px;border:1px dashed var(--line-2);background:var(--sunk);overflow:hidden}
+.ban img{width:100%;height:100%;filter:grayscale(1) brightness(.55)}
+.row{display:grid;grid-template-columns:1fr 6.5rem 1fr;align-items:center;gap:0}
+.slot{position:relative;display:flex;align-items:center;gap:.55rem;height:44px;padding:4px;border-radius:var(--r-md);background:var(--card);border:1px solid var(--line);min-width:0}
+.slot.r{flex-direction:row-reverse;text-align:right}
+.slot:hover{background:var(--raised)}
+.slot .ic{flex:none;width:34px;height:34px;border-radius:var(--r-sm);background:var(--sunk);overflow:hidden}
+.slot .ic img{width:100%;height:100%}
+.slot .nm{min-width:0;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600}
+.slot .x{flex:none;width:22px;height:22px;border:0;border-radius:50%;background:none;color:var(--faint);opacity:0}
+.slot:hover .x,.slot .x:focus-visible{opacity:1}.slot .x:hover{color:var(--text)}
+.slot.on,.ban.on{outline:2px solid rgba(255,255,255,.7);outline-offset:1px}
+.mid{display:grid;gap:2px;padding:0 .5rem}
+.g{position:relative;height:6px;border-radius:99px;background:var(--sunk)}
+.g::after{content:"";position:absolute;left:50%;top:-2px;bottom:-2px;width:1px;background:var(--line-2)}
+.g .band{position:absolute;top:0;bottom:0;background:rgba(255,255,255,.06);border-radius:99px}
+.g .f{position:absolute;top:0;bottom:0;border-radius:99px;transition:all .25s}
+.gv{font-size:.6875rem;text-align:center;color:var(--muted)}
+.row.part .f{opacity:.4}.row.part .gv{color:var(--faint)}
+.phases{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;margin-top:6px;padding-top:10px;border-top:1px solid var(--line)}
+.phase{display:grid;gap:5px;padding:7px 10px 8px;border-radius:var(--r-md);border:1px solid var(--line);background:var(--card);text-align:center}
+.phase:hover{background:var(--raised)}
+.phase[aria-selected=true]{border-color:rgba(255,255,255,.55)}
+.phase .ph{font-size:.625rem;font-weight:700;letter-spacing:.08em;color:var(--dim)}
+.phase[aria-selected=true] .ph{color:var(--text)}
+.phase .gv{font-size:.75rem;font-weight:700;color:var(--text)}
+.phase.part .f{opacity:.4}.phase.part .gv{color:var(--faint)}
+.phase.thin{border-style:dashed;opacity:.6}
+.lower{display:grid;gap:6px;margin-top:6px}
+.hov{display:flex;align-items:center;gap:6px;min-height:20px;font-size:.75rem;font-weight:600;color:var(--muted)}
+.hov img{width:20px;height:20px;border-radius:4px}
+.tiles{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}
+.tile{aspect-ratio:1;display:grid;grid-template-rows:auto 1fr;justify-items:center;text-align:center}
+.tile .v{align-self:center;font-size:1.625rem;font-weight:800;letter-spacing:-.03em;line-height:1}
+.tile .dr2{align-self:center;display:grid;gap:4px;font-size:1.125rem;font-weight:800}
+.tile .dr2 span{display:flex;align-items:center;gap:6px}
+.dot{width:7px;height:7px;border-radius:50%}
+.card{padding:9px 10px;border-radius:var(--r-md);border:1px solid var(--line);background:var(--card);min-width:0}
+.card .lbl{display:block;font-size:.5625rem;font-weight:700;letter-spacing:.08em;color:var(--dim)}
+.dmg{display:grid;align-content:space-between;gap:6px}
+.dline{display:grid;grid-template-columns:8px minmax(0,1fr);align-items:center;gap:6px}
+.dmg.part .stack{opacity:.45}
+.legend{display:flex;gap:10px;font-size:.5625rem;font-weight:700;letter-spacing:.08em}
+.legend .ad{color:var(--ad)}.legend .ap{color:var(--ap)}.legend .tr{color:var(--tr)}
+.stack{display:flex;height:14px;border-radius:99px;overflow:hidden;background:var(--sunk)}
+.stack i{display:grid;place-items:center;font-style:normal;font-size:.5625rem;font-weight:700;color:#14111b;transition:width .25s}
+.stack .ad{background:var(--ad)}.stack .ap{background:var(--ap)}.stack .tr{background:var(--tr)}
+/* recommendations */
+.recs{position:sticky;top:calc(66px + 1.25rem);display:flex;flex-direction:column;min-height:0;max-height:calc(100svh - 66px - 2.5rem);border-radius:var(--r-md);background:var(--card);border:1px solid var(--line)}
+.search{margin:.8rem .8rem .5rem;height:34px;padding:0 .7rem;border-radius:var(--r-md);border:1px solid var(--line-2);background:var(--sunk);outline:none}
+.search:focus{border-color:var(--mark)}
+.rbody{flex:1;min-height:0;overflow:auto}
+/* the list's own scrollbar: thin, no track, the accent gradient as thumb */
+.rbody::-webkit-scrollbar,.board::-webkit-scrollbar{width:10px;height:10px}
+.rbody::-webkit-scrollbar-track,.board::-webkit-scrollbar-track{background:transparent}
+.rbody::-webkit-scrollbar-thumb,.board::-webkit-scrollbar-thumb{border:3px solid transparent;border-radius:99px;background:var(--fill) padding-box}
+.rbody::-webkit-scrollbar-thumb:hover,.board::-webkit-scrollbar-thumb:hover{border-width:2px;background:var(--fill-hover) padding-box}
+@supports not selector(::-webkit-scrollbar){.rbody,.board{scrollbar-width:thin;scrollbar-color:var(--gold) transparent}}
+table{width:100%;border-collapse:collapse}
+th{position:sticky;top:0;z-index:1;background:var(--card);padding:.3rem .55rem;border-bottom:1px solid var(--line);font-size:.625rem;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--dim);text-align:right;white-space:nowrap}
+th:first-child{text-align:left}
+th button{border:0;background:none;padding:0;font:inherit;letter-spacing:inherit;text-transform:inherit;color:inherit}
+th[aria-sort=descending] button{color:var(--text)}th[aria-sort=descending] button::after{content:" ↓"}
+td{padding:.3rem .55rem;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}
+td:first-child{text-align:left;width:100%;max-width:0}
+tbody tr{cursor:pointer}tbody tr:hover{background:var(--raised)}
+.who{display:flex;align-items:center;gap:.55rem;min-width:0}
+.who img{flex:none;width:28px;height:28px;border-radius:5px}
+.ring{flex:none;display:grid;padding:2px;border-radius:7px}
+.ring.fit{background:var(--fill);box-shadow:0 0 10px rgba(var(--gold-rgb),.35)}
+.who b{font-weight:600}
+.p{font-weight:700}
+.p.fit{background:linear-gradient(135deg,#f0d9ff 0%,var(--mark) 100%);-webkit-background-clip:text;background-clip:text;color:transparent}
+.w{display:inline-flex;align-items:center;gap:4px}.w img{width:18px;height:18px;border-radius:4px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(3.6rem,1fr));gap:4px;padding:.3rem .8rem .8rem}
+.grid button{border:0;background:none;padding:4px 2px;border-radius:var(--r-sm);display:grid;justify-items:center;gap:2px;font-size:.625rem;color:var(--muted);min-width:0}
+.grid button span{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.grid button:hover{background:var(--raised)}
+.grid img{width:40px;height:40px;border-radius:var(--r-sm)}
+.grid button:disabled{opacity:.2;cursor:default}
+.empty{padding:1.5rem .8rem;text-align:center;color:var(--dim);font-size:.8125rem}
+/* the API is a local server: say so when it does not answer */
+.off{max-width:34rem;margin:clamp(2rem,10svh,6rem) auto;padding:1.25rem 1.5rem;border-radius:var(--r-lg);background:var(--card);color:var(--text);font-size:.9375rem;line-height:1.6}
+.off small{display:block;margin-top:.5rem;color:var(--muted);font-size:.8125rem}
+.off code{font-family:var(--mono);font-size:.75rem;color:var(--text)}
+@media(max-width:62rem){.layout{grid-template-columns:minmax(0,1fr)}.recs{position:static;max-height:none}.rbody{max-height:70vh}}
+/* Desktop: an app, like the local tool. The page itself stays still (no page scroll, so no footer here);
+   the champion list scrolls on its own without dragging the page, and so does the board on short screens. */
+@media(min-width:62.0625rem) and (min-height:34rem){
+  html{overflow:hidden}
+  body{display:flex;flex-direction:column;height:100svh}
+  .dr{flex:1;min-height:0;display:flex;flex-direction:column;padding-block:1.25rem}
+  #app{flex:1;min-height:0;display:flex;flex-direction:column}
+  .wp{width:100%}
+  .layout{flex:1;min-height:0;grid-template-rows:minmax(0,1fr)}
+  /* the padding keeps the selected slot's outline clear of the scroll edge */
+  .board{min-height:0;overflow-y:auto;overscroll-behavior:contain;padding:4px;margin:-4px}
+  .recs{position:static;max-height:none}
+  .rbody{overscroll-behavior:contain}
+  .foot{display:none}
+}
+@media(max-width:759px){.recs{top:calc(54px + 1.25rem)}}
+@media(max-width:30rem){.row,.bans{grid-template-columns:minmax(0,1fr) 4.5rem minmax(0,1fr)}.slot .ic{width:28px;height:28px}.wsm{display:none}
+  .bset{gap:2px}.ban{flex:0 1 26px;min-width:0;width:auto;height:auto;aspect-ratio:1}}
+</style>
+</head>
+<body>
+
+<header class="nav"><div class="wrap">
+  <a class="logo" href="/" aria-label="Videns home">VIDENS<i>.</i></a>
+  <nav class="links" aria-label="Primary">
+    <a class="bc" href="/search">Search</a>
+    <a class="bc cur" href="/draft" aria-current="page"><span class="lw">Drafting tool</span><span class="ln">Draft</span></a>
+    <a class="bc" href="/coach"><span class="lw">Post-game coach</span><span class="ln">Coach</span></a>
+  </nav>
+</div></header>
+
+<main id="main" class="wrap dr">
+  <h1 class="sr">Drafting tool</h1>
+  <div id="app">
+    <div class="wp" role="group" aria-label="Win probability" title="Champion-only model · calls 54% of unseen games · use it as a tiebreaker">
+      <b class="pb" id="wp-b" aria-label="Blue">50.0%</b>
+      <div class="wpbar" aria-hidden="true"><i id="wp-bar" style="width:50%"></i></div>
+      <b class="pr" id="wp-r" aria-label="Red">50.0%</b>
+    </div>
+    <div class="layout">
+      <section class="board" id="board" aria-label="Draft"></section>
+      <section class="recs" aria-label="Recommendations">
+        <input class="search" id="q" type="search" placeholder="Search champion" autocomplete="off" aria-label="Search champion">
+        <div class="rbody" id="body"></div>
+      </section>
+    </div>
+  </div>
+  <p class="off" id="off" role="alert" hidden></p>
+</main>
+
+<footer class="foot"><div class="wrap">
+  <a class="logo" href="/" aria-label="Videns home">VIDENS<i>.</i></a>
+  <nav aria-label="Footer"><a href="/">Home</a><a href="/search">Search</a><a href="/draft" aria-current="page">Drafting tool</a><a href="/coach">Post-game coach</a></nav>
+  <p>Videns is an independent project, not endorsed by or affiliated with Riot Games. League of Legends is a trademark of Riot Games, Inc.</p>
+  <p>Champion icons from Data Dragon. API: <code id="api-label"></code></p>
+</div></footer>
+
+<script>
+const $ = (id) => document.getElementById(id);
+// The draft model runs on a local server (draft/scripts/start_tool.ps1, port 8030). Served by that
+// server the API is same-origin; anywhere else (videns.gg, a static dev server) it is the local one.
+// ?api=https://host points the page at another host.
+const API_OVERRIDE = new URLSearchParams(location.search).get("api");
+const API = (API_OVERRIDE ?? (location.port === "8030" ? "" : "http://127.0.0.1:8030")).replace(/\/$/, "");
+$("api-label").textContent = API || location.origin;
+const ROLES = ["Top", "Jungle", "Mid", "ADC", "Support"];
+const SIDES = ["Blue", "Red"];
+// position icons: Community Dragon rcp-fe-lol-static-assets/svg/position-*.svg, recoloured with currentColor
+const ROLE_ICON = [`<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" viewBox="0 0 34 34"> <path opacity="0.5" fill="currentColor" fill-rule="evenodd" d="M21,14H14v7h7V14Zm5-3V26L11.014,26l-4,4H30V7.016Z"/> <polygon fill="currentColor" points="4 4 4.003 28.045 9 23 9 9 23 9 28.045 4.003 4 4"/> </svg>`, `<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" viewBox="0 0 34 34"> <path fill="currentColor" fill-rule="evenodd" d="M25,3c-2.128,3.3-5.147,6.851-6.966,11.469A42.373,42.373,0,0,1,20,20a27.7,27.7,0,0,1,1-3C21,12.023,22.856,8.277,25,3ZM13,20c-1.488-4.487-4.76-6.966-9-9,3.868,3.136,4.422,7.52,5,12l3.743,3.312C14.215,27.917,16.527,30.451,17,31c4.555-9.445-3.366-20.8-8-28C11.67,9.573,13.717,13.342,13,20Zm8,5a15.271,15.271,0,0,1,0,2l4-4c0.578-4.48,1.132-8.864,5-12C24.712,13.537,22.134,18.854,21,25Z"/> </svg>`, `<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" viewBox="0 0 34 34"> <path opacity="0.5" fill="currentColor" fill-rule="evenodd" d="M30,12.968l-4.008,4L26,26H17l-4,4H30ZM16.979,8L21,4H4V20.977L8,17,8,8h8.981Z"/> <polygon fill="currentColor" points="25 4 4 25 4 30 9 30 30 9 30 4 25 4"/> </svg>`, `<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" viewBox="0 0 34 34"> <path opacity="0.5" fill="currentColor" fill-rule="evenodd" d="M13,20h7V13H13v7ZM4,4V26.984l3.955-4L8,8,22.986,8l4-4H4Z"/> <polygon fill="currentColor" points="29.997 5.955 25 11 25 25 11 25 5.955 29.997 30 30 29.997 5.955"/> </svg>`, `<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" viewBox="0 0 34 34"> <path fill="currentColor" fill-rule="evenodd" d="M26,13c3.535,0,8-4,8-4H23l-3,3,2,7,5-2-3-4h2ZM22,5L20.827,3H13.062L12,5l5,6Zm-5,9-1-1L13,28l4,3,4-3L18,13ZM11,9H0s4.465,4,8,4h2L7,17l5,2,2-7Z"/> </svg>`];
+let META, CH = {}, VER;
+const S = { picks: [[0,0,0,0,0],[0,0,0,0,0]], bans: [[0,0,0,0,0],[0,0,0,0,0]], active: { kind: "pick", side: 0, idx: 0 },
+            sort: "p_expected", recs: null, st: null, top: new Set(), q: "", phase: 12, hover: null };
+const PHASES = { 12: "EARLY", 24: "MID", 30: "LATE" };
+const LANE_SCALE = { 12: 1500, 24: 3000, 30: 3750 }, TEAM_SCALE = { 12: 3000, 24: 6000, 30: 7500 };
+const img = (id) => `https://ddragon.leagueoflegends.com/cdn/${VER}/img/champion/${CH[id].img}.png`;
+const pct = (p) => (p * 100).toFixed(1) + "%";
+const r50 = (g) => Math.round(g / 50) * 50 || 0;
+const num = (n) => String(Math.round(n));  // no thousands separator
+const gold = (g) => { const v = r50(g); return v === 0 ? "0" : (v > 0 ? "+" : "−") + num(Math.abs(v)); };
+const norm = (s) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[^a-z0-9]/g, "");
+const taken = () => new Set([...S.picks[0], ...S.picks[1], ...S.bans[0], ...S.bans[1]].filter(Boolean));
+const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+
+function offline() {
+  $("app").hidden = true;
+  $("off").innerHTML = `Could not reach the draft API at <code>${esc(API || location.origin)}</code>.<small>Start it with <code>draft\\scripts\\start_tool.ps1</code>, or point this page at another host with <code>?api=https://host</code>.</small>`;
+  $("off").hidden = false;
+}
+async function call(path, init) {
+  let r;
+  try { r = await fetch(API + path, init); } catch (e) { offline(); throw e; }
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+const post = (path, body) => call(path, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+
+function slot(side, r) {
+  const c = S.picks[side][r], a = S.active;
+  const on = a.kind === "pick" && a.side === side && a.idx === r ? " on" : "";
+  return `<div class="slot ${side ? "r" : "b"}${on}" data-pick="${side},${r}" role="button" tabindex="0" aria-label="${SIDES[side]} ${ROLES[r]}: ${c ? CH[c].name : "empty"}">
+    <span class="ic">${c ? `<img src="${img(c)}" alt="">` : `<span class="ri">${ROLE_ICON[r]}</span>`}</span>
+    <span class="nm">${c ? CH[c].name : ""}</span>
+    ${c ? `<button class="x" type="button" data-clear="${side},${r}" aria-label="Remove ${CH[c].name}">✕</button>` : ""}</div>`;
+}
+
+function renderBoard() {
+  const a = S.active, st = S.st;
+  const bans = (side) => S.bans[side].map((c, i) => {
+    const on = a.kind === "ban" && a.side === side && a.idx === i ? " on" : "";
+    return `<button class="ban${on}" type="button" data-ban="${side},${i}" aria-label="${c ? SIDES[side] + " ban: " + CH[c].name : SIDES[side] + " ban, empty"}">${c ? `<img src="${img(c)}" alt="">` : ""}</button>`;
+  }).join("");
+  let h = `<div class="bans"><div class="bset">${bans(0)}</div><span class="lbl">BANS</span><div class="bset r">${bans(1)}</div></div>`;
+  const ph = st ? st.phases.find((x) => x.minute === S.phase) : null;
+  for (let r = 0; r < 5; r++) {
+    const l = ph ? ph.lanes[r] : null;
+    let mid = `<span class="role" title="${ROLES[r]}">${ROLE_ICON[r]}</span><div class="g"></div><span class="gv">&nbsp;</span>`;
+    if (l) {
+      const SC = LANE_SCALE[S.phase], g = Math.max(-SC, Math.min(SC, l.gold)), w = Math.abs(g) / SC * 50;
+      const band = Math.min(50, l.rmse / SC * 50);
+      mid = `<span class="role" title="${ROLES[r]}">${ROLE_ICON[r]}</span>
+        <div class="g" title="Lane gold at ${S.phase}:00 (blue − red): ${gold(l.gold)} ± ${num(r50(l.rmse))}">
+          <span class="band" style="left:${50 - band}%;width:${2 * band}%"></span>
+          <span class="f" style="left:${g >= 0 ? 50 - w : 50}%;width:${w}%;background:${g >= 0 ? "var(--blue)" : "var(--red)"}"></span></div>
+        <span class="gv">${l.both_known ? gold(l.gold) + " g" : "—"}</span>`;
+    }
+    h += `<div class="row${l && l.both_known ? "" : " part"}">${slot(0, r)}<div class="mid">${mid}</div>${slot(1, r)}</div>`;
+  }
+  h += `<div class="phases" role="tablist" aria-label="Game phase">`;
+  for (const m of [12, 24, 30]) {
+    const q = st ? st.phases.find((x) => x.minute === m) : null;
+    // like the lanes: only matchups with both champions count, so the total is the sum of the lanes that show a number
+    const known = q ? q.lanes.filter((l) => l.both_known) : [];
+    const tot = known.reduce((acc, l) => acc + r50(l.gold), 0);
+    const SC = TEAM_SCALE[m], gt = Math.max(-SC, Math.min(SC, tot)), wt = Math.abs(gt) / SC * 50;
+    const tip = q ? `Team gold at ${m}:00 (blue − red)${known.length < 5 ? ` · ${known.length} of 5 lanes` : ""} · ${Math.round(q.reach * 100)}% of games reach ${m}:00` : "";
+    h += `<button class="phase${q && q.reach < 0.15 ? " thin" : ""}${known.length ? "" : " part"}" type="button" role="tab" aria-selected="${S.phase === m}" data-phase="${m}" title="${tip}">
+      <span class="ph">${PHASES[m]}</span>
+      <div class="g"><span class="f" style="left:${gt >= 0 ? 50 - wt : 50}%;width:${wt}%;background:${gt >= 0 ? "var(--blue)" : "var(--red)"}"></span></div>
+      <span class="gv">${q ? (known.length ? gold(tot) + " g" : "—") : "&nbsp;"}</span></button>`;
+  }
+  h += "</div>";
+  if (st) {
+    const bar = (d) => [["ad", d[0], "Physical"], ["ap", d[1], "Magic"], ["tr", d[2], "True"]]
+      .map(([k, v, n]) => `<i class="${k}" style="width:${(v * 100).toFixed(1)}%" title="${n} ${Math.round(v * 100)}%">${v >= 0.12 ? Math.round(v * 100) : ""}</i>`).join("");
+    const dr = st.phases.find((x) => x.minute === S.phase).dragons;
+    h += `<div class="lower"><div class="hov" id="hov" aria-live="polite"></div>
+      <div class="tiles"><div class="card tile"><span class="lbl">EXPECTED CS/MIN</span><span class="v" id="t-cs">—</span></div>
+        <div class="card tile"><span class="lbl">EXPECTED KILLS</span><span class="v" id="t-k">—</span></div>
+        <div class="card tile"><span class="lbl">EXPECTED KP</span><span class="v" id="t-kp">—</span></div>
+        <div class="card tile"><span class="lbl">EXPECTED DRAKES</span><span class="dr2">
+          <span><i class="dot" style="background:var(--blue)" aria-label="Blue"></i>${dr[0].toFixed(1)}</span>
+          <span><i class="dot" style="background:var(--red)" aria-label="Red"></i>${dr[1].toFixed(1)}</span></span></div></div>
+      <div class="card dmg${st.complete ? "" : " part"}"><span class="lbl">DAMAGE</span>
+        <div class="dline"><span class="dot" style="background:var(--blue)" aria-label="Blue"></span><div class="stack">${bar(st.damage[0])}</div></div>
+        <div class="dline"><span class="dot" style="background:var(--red)" aria-label="Red"></span><div class="stack">${bar(st.damage[1])}</div></div>
+        <div class="legend" aria-hidden="true"><span class="ad">AD</span><span class="ap">AP</span><span class="tr">TRUE</span></div></div></div>`;
+  }
+  $("board").innerHTML = h;
+  renderSquare();
+}
+
+// expected CS per minute of the hovered champion (default: the active slot, else the best pick)
+function renderSquare() {
+  const el = $("hov");
+  if (!el) return;
+  const a = S.active;
+  let t = S.hover;
+  if (!t && a.kind === "pick") {
+    const c = S.picks[a.side][a.idx];
+    const best = S.recs && S.recs.candidates.length ? S.recs.candidates[0].id : 0;
+    t = c ? { id: c, role: a.idx } : best ? { id: best, role: a.idx } : null;
+  }
+  const get = (tab) => (t ? tab[t.role][t.id] : null);
+  const cs = get(META.cs[S.phase]), k = get(META.kills), kp = get(META.kp[S.phase]);
+  el.innerHTML = t ? `<img src="${img(t.id)}" alt=""><span>${CH[t.id].name}</span>` : "";
+  $("t-cs").textContent = cs == null ? "—" : (cs / S.phase).toFixed(1);
+  $("t-k").textContent = k == null ? "—" : k.toFixed(1);
+  $("t-kp").textContent = kp == null ? "—" : Math.round(kp * 100) + "%";
+}
+
+function hoverTarget(el) {
+  const a = S.active;
+  const slot = el.closest("[data-pick]");
+  if (slot) {
+    const [s, r] = slot.dataset.pick.split(",").map(Number);
+    return S.picks[s][r] ? { id: S.picks[s][r], role: r } : null;
+  }
+  const row = el.closest("[data-pick-id],[data-assign]");
+  if (row && a.kind === "pick") return { id: +(row.dataset.pickId || row.dataset.assign), role: a.idx };
+  return null;
+}
+
+function setActive(kind, side, idx, focus = true) {
+  S.active = { kind, side, idx };
+  S.recs = null;
+  S.top = new Set();
+  renderBoard();
+  renderRecs();
+  if (kind === "pick") loadRecs();
+  if (focus) $("q").focus({ preventScroll: true });
+}
+
+function assign(id) {
+  const a = S.active;
+  if (a.kind === "pick") S.picks[a.side][a.idx] = id; else S.bans[a.side][a.idx] = id;
+  S.q = ""; $("q").value = "";
+  refresh();
+}
+
+async function refresh() {
+  renderBoard();
+  const draft = { blue: S.picks[0], red: S.picks[1], bans: [...S.bans[0], ...S.bans[1]] };
+  const key = JSON.stringify(draft);
+  S.stateKey = key;
+  const st = await post("/api/state", draft);
+  if (S.stateKey !== key) return;
+  S.st = st;
+  $("wp-b").textContent = pct(st.p_blue);
+  $("wp-r").textContent = pct(1 - st.p_blue);
+  $("wp-bar").style.width = (st.p_blue * 100).toFixed(2) + "%";
+  renderBoard();
+  if (S.active.kind === "pick") loadRecs(); else renderRecs();
+}
+
+async function loadRecs() {
+  const a = S.active;
+  if (a.kind !== "pick") return;
+  const body = { blue: S.picks[0], red: S.picks[1], bans: [...S.bans[0], ...S.bans[1]], side: a.side, role: a.idx, minute: S.phase };
+  const key = JSON.stringify(body);
+  S.recKey = key;
+  const r = await post("/api/recommend", body);
+  if (S.recKey !== key) return;
+  S.recs = r;
+  S.top = new Set(r.candidates.slice(0, 1).map((x) => x.id));  // the single best expected win (candidates arrive sorted)
+  renderRecs();
+  renderSquare();
+}
+
+function renderRecs() {
+  const a = S.active;
+  const body = $("body");
+  if (S.q || a.kind === "ban") return renderGrid(body);
+  const r = S.recs;
+  if (!r) { body.innerHTML = '<p class="empty">…</p>'; return; }
+  if (!r.candidates.length) { body.innerHTML = `<p class="empty">No candidates.</p>`; return; }
+  if (r.opponent_known && S.sort === "p_worst") S.sort = "p_expected";
+  const rows = [...r.candidates].sort((x, y) => (y[S.sort] ?? -1) - (x[S.sort] ?? -1));
+  const th = (key, label, cls = "") => `<th class="${cls}" aria-sort="${S.sort === key ? "descending" : "none"}"><button type="button" data-sort="${key}">${label}</button></th>`;
+  let h = `<table><thead><tr><th></th>${th("p_expected", "Win")}${r.opponent_known ? "" : th("p_worst", "Worst", "wsm")}${th("gold", "Gold")}</tr></thead><tbody>`;
+  for (const x of rows.slice(0, 40)) {
+    h += `<tr data-pick-id="${x.id}" title="${num(x.games)} games as ${ROLES[a.idx]}">
+      <td><div class="who"><span class="ring${S.top.has(x.id) ? " fit" : ""}"><img src="${img(x.id)}" alt=""></span><b>${CH[x.id].name}</b></div></td>
+      <td class="p${S.top.has(x.id) ? " fit" : ""}">${pct(x.p_expected)}</td>
+      ${r.opponent_known ? "" : `<td class="wsm"><span class="w">${pct(x.p_worst)}<img src="${img(x.counter)}" alt="${CH[x.counter].name}" title="Worst reply: ${CH[x.counter].name}"></span></td>`}
+      <td>${gold(x.gold)}</td></tr>`;
+  }
+  body.innerHTML = h + "</tbody></table>";
+}
+
+function renderGrid(body) {
+  const t = taken(), q = norm(S.q);
+  const role = S.active.kind === "pick" ? S.active.idx : null;
+  const list = META.champions.filter((c) => !q || norm(c.name).includes(q));
+  body.innerHTML = list.length ? `<div class="grid">${list.map((c) => `<button type="button" data-assign="${c.id}" ${t.has(c.id) ? "disabled" : ""} title="${c.name}${role !== null ? " · " + num(c.games[role]) + " games as " + ROLES[role] : ""}"><span class="ring${role !== null && S.top.has(c.id) ? " fit" : ""}"><img src="${img(c.id)}" alt="" loading="lazy"></span><span>${c.name}</span></button>`).join("")}</div>`
+    : '<p class="empty">No match.</p>';
+}
+
+document.addEventListener("click", (e) => {
+  const t = e.target.closest("[data-clear],[data-pick],[data-ban],[data-assign],[data-pick-id],[data-sort],[data-phase]");
+  if (!t) return;
+  if (t.dataset.clear) { e.stopPropagation(); const [s, r] = t.dataset.clear.split(",").map(Number); S.picks[s][r] = 0; refresh(); return; }
+  if (t.dataset.pick) { const [s, r] = t.dataset.pick.split(",").map(Number); return setActive("pick", s, r); }
+  if (t.dataset.ban) { const [s, i] = t.dataset.ban.split(",").map(Number); return setActive("ban", s, i); }
+  if (t.dataset.assign) return assign(+t.dataset.assign);
+  if (t.dataset.pickId) return assign(+t.dataset.pickId);
+  if (t.dataset.sort) { S.sort = t.dataset.sort; renderRecs(); }
+  if (t.dataset.phase) { S.phase = +t.dataset.phase; renderBoard(); loadRecs(); }
+});
+document.addEventListener("keydown", (e) => {
+  const s = e.target.closest && e.target.closest("[data-pick]");
+  if (s && e.target === s && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); s.click(); }
+});
+document.addEventListener("mouseover", (e) => {
+  const t = e.target.closest ? hoverTarget(e.target) : null;
+  const k = t ? t.id + "," + t.role : "";
+  if (k !== (S.hover ? S.hover.id + "," + S.hover.role : "")) { S.hover = t; renderSquare(); }
+});
+$("q").addEventListener("input", (e) => { S.q = e.target.value; renderRecs(); });
+$("q").addEventListener("keydown", (e) => {
+  if (e.key !== "Enter") return;
+  const first = document.querySelector("#body [data-assign]:not([disabled])");
+  if (first) first.click();
+});
+
+(async () => {
+  try { META = await call("/api/meta"); } catch { return offline(); }
+  VER = META.version;
+  for (const c of META.champions) CH[c.id] = c;
+  // typing goes straight to the champion search, except on touch screens (no keyboard popping up)
+  setActive("pick", 0, 0, matchMedia("(pointer:fine)").matches);
+  refresh();
+})();
+</script>
+</body>
+</html>

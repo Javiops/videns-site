@@ -1,7 +1,7 @@
 {
   "name": "Videns",
   "short_name": "Videns",
-  "start_url": "index.html",
+  "start_url": "/",
   "display": "standalone",
   "background_color": "#0a090e",
   "theme_color": "#0a090e",

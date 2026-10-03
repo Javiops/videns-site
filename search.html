@@ -3,6 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<script>/* the address stays clean (/search, never /search.html): GitHub Pages serves both */
+if (/^https?:$/.test(location.protocol) && location.pathname.endsWith(".html")) history.replaceState(history.state, "", location.pathname.slice(0, -5).replace(/index$/, "") + location.search + location.hash);</script>
 <title>Search · Videns</title>
 <meta name="description" content="Look up a Riot ID: rank, recent games, season champion stats, win rate, KDA and builds, straight from the Riot API.">
 <meta name="robots" content="noindex">
@@ -593,11 +595,11 @@
 <body data-mode="landing">
 
 <header class="nav"><div class="wrap">
-  <a class="logo" href="index.html" aria-label="Videns home">VIDENS<i>.</i></a>
+  <a class="logo" href="/" aria-label="Videns home">VIDENS<i>.</i></a>
   <nav class="links" aria-label="Primary">
-    <a class="bc" href="index.html">Home</a>
-    <a class="bc cur" href="search.html" aria-current="page">Search</a>
-    <a class="bc" href="macro.html">Review</a>
+    <a class="bc cur" href="/search" aria-current="page">Search</a>
+    <a class="bc" href="/draft"><span class="lw">Drafting tool</span><span class="ln">Draft</span></a>
+    <a class="bc" href="/coach"><span class="lw">Post-game coach</span><span class="ln">Coach</span></a>
   </nav>
   <div class="tools">
     <form class="nsearch" id="nav-form" autocomplete="off" role="search">
@@ -689,8 +691,8 @@
 </main>
 
 <footer class="foot"><div class="wrap">
-  <a class="logo" href="index.html" aria-label="Videns home">VIDENS<i>.</i></a>
-  <nav aria-label="Footer"><a href="index.html">Home</a><a href="search.html" aria-current="page">Search</a><a href="macro.html">Review</a></nav>
+  <a class="logo" href="/" aria-label="Videns home">VIDENS<i>.</i></a>
+  <nav aria-label="Footer"><a href="/">Home</a><a href="/search" aria-current="page">Search</a><a href="/draft">Drafting tool</a><a href="/coach">Post-game coach</a></nav>
   <p>Videns is an independent project, not endorsed by or affiliated with Riot Games. League of Legends is a trademark of Riot Games, Inc.</p>
   <p>Match data comes from the official Riot API; icons from Data Dragon and CommunityDragon. API: <code id="api-label"></code></p>
 </div></footer>
@@ -713,7 +715,7 @@ const apiQs = () => API_OVERRIDE !== null ? `&api=${encodeURIComponent(API_OVERR
 const apiHost = () => { try { return new URL(API || location.origin).host; } catch { return API; } };
 if (API_OVERRIDE !== null) {
   // The nav's Search link keeps the override too, so it never lands on the default API unannounced.
-  document.querySelector(".nav a.bc.cur").href = `search.html?api=${encodeURIComponent(API_OVERRIDE)}`;
+  document.querySelector(".nav a.bc.cur").href = `/search?api=${encodeURIComponent(API_OVERRIDE)}`;
   // A notice nobody can miss: a mock answers every Riot ID with its own player.
   const live = new URL(location.href);
   live.searchParams.delete("api");
@@ -862,7 +864,7 @@ function aug(a) {
   return `<span class="aug r-${known ? r : "other"}" title="${esc(title)}">${pic(a.icon, "", { alt: a.name })}</span>`;
 }
 const riotIdOf = (b) => b.name && b.tag ? `${b.name}#${b.tag}` : "";
-const profileHref = (rid) => `search.html?q=${encodeURIComponent(rid)}&region=${encodeURIComponent(current.region.key)}${apiQs()}`;
+const profileHref = (rid) => `/search?q=${encodeURIComponent(rid)}&region=${encodeURIComponent(current.region.key)}${apiQs()}`;
 
 /* ---------- elements ---------- */
 const state = $("#state");
@@ -1777,7 +1779,7 @@ fetch("review-data/games.json").then((r) => (r.ok ? r.json() : null))
 function detailFooter(m) {
   const g = m.match_id ? MACRO.get(m.match_id) : null;
   const review = g
-    ? `<a href="macro.html#/${encodeURIComponent(g.mid)}/0">Review this game →</a>${Number(m.participant_id) !== Number(g.pid)
+    ? `<a href="/coach#/${encodeURIComponent(g.mid)}/0">Review this game →</a>${Number(m.participant_id) !== Number(g.pid)
       ? ` <small>jungle decisions from ${esc(g.label)}'s view</small>` : ""}`
     : "<span></span>";
   return `<div class="mfoot">${review}<span>${m.patch ? `Patch ${esc(m.patch)} · ` : ""}<code>${esc(m.match_id || "")}</code></span></div>`;
