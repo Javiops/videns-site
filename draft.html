@@ -6,7 +6,7 @@
 <script>/* the address stays clean (/search, never /search.html): GitHub Pages serves both */
 if (/^https?:$/.test(location.protocol) && location.pathname.endsWith(".html")) history.replaceState(history.state, "", location.pathname.slice(0, -5).replace(/index$/, "") + location.search + location.hash);</script>
 <title>Drafting tool · Videns</title>
-<meta name="description" content="Pick by win probability: expected win, worst reply and lane gold for every champion in the draft.">
+<meta name="description" content="Pick by win probability: expected win and lane gold for every champion in the draft.">
 <meta name="robots" content="noindex">
 <meta name="theme-color" content="#0a090e">
 <link rel="preconnect" href="https://ddragon.leagueoflegends.com" crossorigin>
@@ -34,7 +34,9 @@ button,input{font:inherit;color:inherit}button{cursor:pointer}img{display:block}
 .wpbar i{position:absolute;inset:0 auto 0 0;background:var(--blue);transition:width .25s}
 .wpbar::after{content:"";position:absolute;left:50%;top:0;bottom:0;width:2px;margin-left:-1px;background:var(--bg)}
 /* layout */
-.layout{display:grid;grid-template-columns:minmax(0,31rem) minmax(0,1fr);gap:1.25rem}
+/* the board is the page; the champion list is a narrow column beside it */
+.layout{display:grid;grid-template-columns:minmax(0,1fr) 22rem;gap:1.25rem}
+.main{min-width:0}
 /* board */
 .board{display:grid;gap:6px;align-content:start}
 .bans{display:grid;grid-template-columns:1fr 6.5rem 1fr;align-items:center;margin-bottom:4px}
@@ -115,7 +117,6 @@ tbody tr{cursor:pointer}tbody tr:hover{background:var(--raised)}
 .who b{font-weight:600}
 .p{font-weight:700}
 .p.fit{background:linear-gradient(135deg,#f0d9ff 0%,var(--mark) 100%);-webkit-background-clip:text;background-clip:text;color:transparent}
-.w{display:inline-flex;align-items:center;gap:4px}.w img{width:18px;height:18px;border-radius:4px}
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(3.6rem,1fr));gap:4px;padding:.3rem .8rem .8rem}
 .grid button{border:0;background:none;padding:4px 2px;border-radius:var(--r-sm);display:grid;justify-items:center;gap:2px;font-size:.625rem;color:var(--muted);min-width:0}
 .grid button span{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -128,6 +129,24 @@ tbody tr{cursor:pointer}tbody tr:hover{background:var(--raised)}
 .off small{display:block;margin-top:.5rem;color:var(--muted);font-size:.8125rem}
 .off code{font-family:var(--mono);font-size:.75rem;color:var(--text)}
 @media(max-width:62rem){.layout{grid-template-columns:minmax(0,1fr)}.recs{position:static;max-height:none}.rbody{max-height:70vh}}
+/* Desktop: the board, larger and centred over its column, is what the eye lands on */
+@media(min-width:62.0625rem){
+  .board{width:min(42rem,100%);margin-inline:auto}
+  .row,.bans{grid-template-columns:1fr 8rem 1fr}
+  .ban{width:30px;height:30px}
+  .slot{height:52px;padding:5px;gap:.65rem}
+  .slot .ic{width:42px;height:42px}
+  .slot .nm{font-size:.9375rem}
+  .slot .ic .ri svg{width:26px;height:26px}
+  .mid .role{height:18px}.mid .role svg{width:18px;height:18px}
+  .gv{font-size:.75rem}
+  .phase{padding:9px 12px 10px}
+  .phase .ph{font-size:.6875rem}.phase .gv{font-size:.875rem}
+  .hov{font-size:.8125rem}.hov img{width:22px;height:22px}
+  .tile{aspect-ratio:6/5}
+  .tile .v{font-size:2rem}.tile .dr2{font-size:1.25rem}
+  .card{padding:10px 12px}.card .lbl{font-size:.625rem}
+}
 /* Desktop: an app, like the local tool. The page itself stays still (no page scroll, so no footer here);
    the champion list scrolls on its own without dragging the page, and so does the board on short screens. */
 @media(min-width:62.0625rem) and (min-height:34rem){
@@ -135,16 +154,17 @@ tbody tr{cursor:pointer}tbody tr:hover{background:var(--raised)}
   body{display:flex;flex-direction:column;height:100svh}
   .dr{flex:1;min-height:0;display:flex;flex-direction:column;padding-block:1.25rem}
   #app{flex:1;min-height:0;display:flex;flex-direction:column}
-  .wp{width:100%}
   .layout{flex:1;min-height:0;grid-template-rows:minmax(0,1fr)}
+  .main{min-height:0;display:flex;flex-direction:column}
+  .wp{flex:none;width:100%}
   /* the padding keeps the selected slot's outline clear of the scroll edge */
-  .board{min-height:0;overflow-y:auto;overscroll-behavior:contain;padding:4px;margin:-4px}
+  .board{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;padding:4px;margin:-4px auto;width:min(calc(42rem + 8px),calc(100% + 8px))}
   .recs{position:static;max-height:none}
   .rbody{overscroll-behavior:contain}
   .foot{display:none}
 }
 @media(max-width:759px){.recs{top:calc(54px + 1.25rem)}}
-@media(max-width:30rem){.row,.bans{grid-template-columns:minmax(0,1fr) 4.5rem minmax(0,1fr)}.slot .ic{width:28px;height:28px}.wsm{display:none}
+@media(max-width:30rem){.row,.bans{grid-template-columns:minmax(0,1fr) 4.5rem minmax(0,1fr)}.slot .ic{width:28px;height:28px}
   .bset{gap:2px}.ban{flex:0 1 26px;min-width:0;width:auto;height:auto;aspect-ratio:1}}
 </style>
 </head>
@@ -162,13 +182,15 @@ tbody tr{cursor:pointer}tbody tr:hover{background:var(--raised)}
 <main id="main" class="wrap dr">
   <h1 class="sr">Drafting tool</h1>
   <div id="app">
-    <div class="wp" role="group" aria-label="Win probability" title="Champion-only model · calls 54% of unseen games · use it as a tiebreaker">
-      <b class="pb" id="wp-b" aria-label="Blue">50.0%</b>
-      <div class="wpbar" aria-hidden="true"><i id="wp-bar" style="width:50%"></i></div>
-      <b class="pr" id="wp-r" aria-label="Red">50.0%</b>
-    </div>
     <div class="layout">
-      <section class="board" id="board" aria-label="Draft"></section>
+      <div class="main">
+        <div class="wp" role="group" aria-label="Win probability" title="Champion-only model · calls 54% of unseen games · use it as a tiebreaker">
+          <b class="pb" id="wp-b" aria-label="Blue">50.0%</b>
+          <div class="wpbar" aria-hidden="true"><i id="wp-bar" style="width:50%"></i></div>
+          <b class="pr" id="wp-r" aria-label="Red">50.0%</b>
+        </div>
+        <section class="board" id="board" aria-label="Draft"></section>
+      </div>
       <section class="recs" aria-label="Recommendations">
         <input class="search" id="q" type="search" placeholder="Search champion" autocomplete="off" aria-label="Search champion">
         <div class="rbody" id="body"></div>
@@ -373,15 +395,13 @@ function renderRecs() {
   const r = S.recs;
   if (!r) { body.innerHTML = '<p class="empty">…</p>'; return; }
   if (!r.candidates.length) { body.innerHTML = `<p class="empty">No candidates.</p>`; return; }
-  if (r.opponent_known && S.sort === "p_worst") S.sort = "p_expected";
   const rows = [...r.candidates].sort((x, y) => (y[S.sort] ?? -1) - (x[S.sort] ?? -1));
   const th = (key, label, cls = "") => `<th class="${cls}" aria-sort="${S.sort === key ? "descending" : "none"}"><button type="button" data-sort="${key}">${label}</button></th>`;
-  let h = `<table><thead><tr><th></th>${th("p_expected", "Win")}${r.opponent_known ? "" : th("p_worst", "Worst", "wsm")}${th("gold", "Gold")}</tr></thead><tbody>`;
+  let h = `<table><thead><tr><th></th>${th("p_expected", "Win")}${th("gold", "Gold")}</tr></thead><tbody>`;
   for (const x of rows.slice(0, 40)) {
     h += `<tr data-pick-id="${x.id}" title="${num(x.games)} games as ${ROLES[a.idx]}">
       <td><div class="who"><span class="ring${S.top.has(x.id) ? " fit" : ""}"><img src="${img(x.id)}" alt=""></span><b>${CH[x.id].name}</b></div></td>
       <td class="p${S.top.has(x.id) ? " fit" : ""}">${pct(x.p_expected)}</td>
-      ${r.opponent_known ? "" : `<td class="wsm"><span class="w">${pct(x.p_worst)}<img src="${img(x.counter)}" alt="${CH[x.counter].name}" title="Worst reply: ${CH[x.counter].name}"></span></td>`}
       <td>${gold(x.gold)}</td></tr>`;
   }
   body.innerHTML = h + "</tbody></table>";
