@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script>/* the address stays clean (/search, never /search.html): GitHub Pages serves both */
+if (/^https?:$/.test(location.protocol) && location.pathname.endsWith(".html")) history.replaceState(history.state, "", location.pathname.slice(0, -5).replace(/index$/, "") + location.search + location.hash);</script>
+<title>In development · Videns</title>
+<meta name="description" content="Search, the Drafting tool and the Post-game coach are in development.">
+<meta name="robots" content="noindex">
+<meta name="theme-color" content="#0a090e">
+<link rel="preload" href="fonts/inter-var-latin.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="site.css">
+<link rel="icon" href="favicon.ico" sizes="32x32">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="manifest" href="site.webmanifest">
+<style>
+/* Palette, font, header and footer come from site.css. One screen for the three tools still in development:
+   ?p=search|draft|coach names the tool and marks its tab. */
+*,*::before,*::after{box-sizing:border-box}
+[hidden]{display:none!important}
+html{scrollbar-gutter:stable;-webkit-text-size-adjust:100%}
+body{font-size:1rem;line-height:1.6;overflow-x:clip}
+.dev{min-height:calc(100svh - 67px);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:clamp(1.75rem,4.5svh,3rem);
+  padding-block:clamp(2rem,6svh,4.5rem);text-align:center}
+h1{margin:0;font-weight:800;font-size:clamp(3.25rem,min(1rem + 7.4vw,13svh),8.5rem);line-height:.92;letter-spacing:-.055em;text-wrap:balance;
+  padding-bottom:.05em;color:var(--text)}
+.dot{color:var(--gold);-webkit-text-fill-color:var(--gold)}
+.btn{display:inline-flex;align-items:center;padding:1.15rem 2.1rem;border-radius:var(--r-md);background:var(--fill);color:var(--on-gold);
+  font-weight:800;font-size:1.0625rem;line-height:1;box-shadow:var(--fill-shadow);cursor:default}
+@media(max-width:759px){.dev{min-height:calc(100svh - 55px)}}
+</style>
+</head>
+<body>
+
+<header class="nav"><div class="wrap">
+  <a class="logo" href="/" aria-label="Videns home">VIDENS<i>.</i></a>
+  <nav class="links" aria-label="Primary">
+    <a class="bc" href="/development?p=search" data-p="search">Search</a>
+    <a class="bc" href="/development?p=draft" data-p="draft"><span class="lw">Drafting tool</span><span class="ln">Draft</span></a>
+    <a class="bc" href="/development?p=coach" data-p="coach"><span class="lw">Post-game coach</span><span class="ln">Coach</span></a>
+  </nav>
+</div></header>
+
+<main id="main" class="wrap dev">
+  <h1 id="dev-title">In development<span class="dot">.</span></h1>
+  <span class="btn" id="dev-pill" hidden>In development</span>
+</main>
+
+<footer class="foot"><div class="wrap">
+  <a class="logo" href="/" aria-label="Videns home">VIDENS<i>.</i></a>
+  <nav aria-label="Footer"><a href="/">Home</a><a href="/development?p=search" data-p="search">Search</a><a href="/development?p=draft" data-p="draft">Drafting tool</a><a href="/development?p=coach" data-p="coach">Post-game coach</a></nav>
+  <p>Videns is an independent project, not endorsed by or affiliated with Riot Games. League of Legends is a trademark of Riot Games, Inc.</p>
+</div></footer>
+
+<script>
+const NAMES = { search: "Search", draft: "Drafting tool", coach: "Post-game coach" };
+const p = new URLSearchParams(location.search).get("p");
+if (NAMES[p]) {
+  const h = document.getElementById("dev-title");
+  h.firstChild.textContent = NAMES[p];
+  document.getElementById("dev-pill").hidden = false;
+  document.title = `${NAMES[p]} · Videns`;
+  for (const a of document.querySelectorAll(`[data-p="${p}"]`)) {
+    a.setAttribute("aria-current", "page");
+    if (a.classList.contains("bc")) a.classList.add("cur");
+  }
+}
+</script>
+</body>
+</html>

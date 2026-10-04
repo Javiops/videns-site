@@ -29,16 +29,10 @@ if (/^https?:$/.test(location.protocol) && location.pathname.endsWith(".html")) 
 <header class="nav" id="nav"><div class="wrap">
 <a class="logo" href="/" aria-label="Videns home">VIDENS<i>.</i></a>
 <nav class="links" aria-label="Primary">
-<a class="bc" href="/search">Search</a>
-<a class="bc" href="/draft"><span class="lw">Drafting tool</span><span class="ln">Draft</span></a>
-<a class="bc" href="/coach"><span class="lw">Post-game coach</span><span class="ln">Coach</span></a>
+<a class="bc" href="/development?p=search">Search</a>
+<a class="bc" href="/development?p=draft"><span class="lw">Drafting tool</span><span class="ln">Draft</span></a>
+<a class="bc" href="/development?p=coach"><span class="lw">Post-game coach</span><span class="ln">Coach</span></a>
 </nav>
-<div class="tools">
-<a class="nq" href="/search">
-<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4.5 4.5"/></svg>
-<span>Search a player</span>
-</a>
-</div>
 </div></header>
 
 <main id="main">
@@ -59,7 +53,7 @@ if (/^https?:$/.test(location.protocol) && location.pathname.endsWith(".html")) 
 </div>
 <div>
 <p class="sub">The drafting tool reads your draft as you pick: <strong>the three best champions for your lane</strong>, the win chance each one gives your team, and the gold, CS and kill participation it brings against your lane opponent.</p>
-<a class="more" href="/draft">Open the Drafting tool
+<a class="more" href="/development?p=draft">Open the Drafting tool
 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
 </div>
 </div>
@@ -99,7 +93,7 @@ if (/^https?:$/.test(location.protocol) && location.pathname.endsWith(".html")) 
 </div>
 <div>
 <p class="sub">Rank, recent games with Load more, season champion stats and a <strong>full scoreboard</strong> for every match. ARAM and Arena are first-class queues.</p>
-<a class="more" href="/search">Open Search
+<a class="more" href="/development?p=search">Open Search
 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
 </div>
 </div>
@@ -160,15 +154,15 @@ if (/^https?:$/.test(location.protocol) && location.pathname.endsWith(".html")) 
 <div>
 <h3 class="k" id="reg-h">17 regions</h3>
 <div class="regs" id="regs" role="group" aria-labelledby="reg-h">
-<a href="/search?region=euw">EUW</a><a href="/search?region=eune">EUNE</a>
-<a href="/search?region=na">NA</a><a href="/search?region=kr">KR</a>
-<a href="/search?region=br">BR</a><a href="/search?region=lan">LAN</a>
-<a href="/search?region=las">LAS</a><a href="/search?region=jp">JP</a>
-<a href="/search?region=tr">TR</a><a href="/search?region=ru">RU</a>
-<a href="/search?region=me">ME</a><a href="/search?region=oce">OCE</a>
-<a href="/search?region=sg">SG</a><a href="/search?region=ph">PH</a>
-<a href="/search?region=th">TH</a><a href="/search?region=tw">TW</a>
-<a href="/search?region=vn">VN</a>
+<a href="/development?p=search">EUW</a><a href="/development?p=search">EUNE</a>
+<a href="/development?p=search">NA</a><a href="/development?p=search">KR</a>
+<a href="/development?p=search">BR</a><a href="/development?p=search">LAN</a>
+<a href="/development?p=search">LAS</a><a href="/development?p=search">JP</a>
+<a href="/development?p=search">TR</a><a href="/development?p=search">RU</a>
+<a href="/development?p=search">ME</a><a href="/development?p=search">OCE</a>
+<a href="/development?p=search">SG</a><a href="/development?p=search">PH</a>
+<a href="/development?p=search">TH</a><a href="/development?p=search">TW</a>
+<a href="/development?p=search">VN</a>
 </div>
 <p class="hint">Pick one to open Search there.</p>
 </div>
@@ -185,9 +179,9 @@ if (/^https?:$/.test(location.protocol) && location.pathname.endsWith(".html")) 
 <a class="logo" href="/" aria-label="Videns home">VIDENS<i>.</i></a>
 <nav aria-label="Footer">
 <a href="/" aria-current="page">Home</a>
-<a href="/search">Search</a>
-<a href="/draft">Drafting tool</a>
-<a href="/coach">Post-game coach</a>
+<a href="/development?p=search">Search</a>
+<a href="/development?p=draft">Drafting tool</a>
+<a href="/development?p=coach">Post-game coach</a>
 </nav>
 <p>Videns is an independent project, not endorsed by or affiliated with Riot Games. League of Legends is a trademark of Riot Games, Inc.</p>
 </div></footer>
